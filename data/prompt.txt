@@ -1,0 +1,12 @@
+You are sorting a customer's banking message into exactly one category.
+Read the message. Pick the single best category from the list below.
+Answer with one JSON object and nothing else. No extra words, no code fences, no explanation.
+The JSON object must look exactly like this: {"intent": "<category>", "confidence": <a whole number from 0 to 100>}
+The "intent" value must be copied exactly from the category list.
+The "confidence" value is how sure you are, from 0 (not sure at all) to 100 (fully sure).
+
+Categories:
+__INTENT_LIST__
+
+Customer message:
+__TEXT__

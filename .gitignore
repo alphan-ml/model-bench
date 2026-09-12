@@ -13,3 +13,11 @@ node_modules/
 # outputs/*.jsonl is committed per spec (section 2) — do not ignore it.
 # `modelbench smoke` writes here instead, never to outputs/ — never commit it.
 .smoke_outputs/
+# web/index.html is a BUILD OUTPUT (scripts_build_web_page.py embeds a
+# results JSON into web/index.template.html) -- never commit it. Before
+# Gate 1 the only results file that exists is results.sample.json
+# (synthetic numbers, clearly marked), and committing the built page
+# under the real production filename risks it being mistaken for real
+# output sitting in the repo. Build it locally for dev preview:
+#   python3 scripts_build_web_page.py --results results.sample.json --out web/index.html
+web/index.html

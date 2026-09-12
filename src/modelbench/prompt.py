@@ -15,25 +15,40 @@ from dataclasses import dataclass
 TEMPERATURE = 0
 MAX_OUTPUT_TOKENS = 60
 
-_INSTRUCTIONS = (
+# PROMPT_TEMPLATE is the one prompt every adapter (Python and the W-A3
+# Node/Vercel side) must send. It is exported verbatim to data/prompt.txt by
+# scripts_export_prompt.py so web/api/run-one.js can read the exact same
+# bytes rather than re-typing the wording in JS and risking drift between
+# the two languages (SPEC-model-bench.md section 2's repo layout: "prompt
+# text is shared via data/prompt.txt, read at build").
+#
+# __INTENT_LIST__ and __TEXT__ are plain string.replace() tokens, not
+# str.format() placeholders — deliberately, so this exact text can be
+# dropped into data/prompt.txt and substituted the same way (a JS
+# `.replace()` call) on the other side without JS having to reproduce
+# Python's `{{`/`}}` format-string brace-escaping rules. Changing this
+# constant's substitution mechanism (format -> replace) does not change its
+# rendered output for any existing input: the JSON example below already
+# reads as literal single braces after either mechanism.
+PROMPT_TEMPLATE = (
     "You are sorting a customer's banking message into exactly one category.\n"
     "Read the message. Pick the single best category from the list below.\n"
     "Answer with one JSON object and nothing else. No extra words, no code "
     "fences, no explanation.\n"
-    'The JSON object must look exactly like this: {{"intent": "<category>", '
-    '"confidence": <a whole number from 0 to 100>}}\n'
+    'The JSON object must look exactly like this: {"intent": "<category>", '
+    '"confidence": <a whole number from 0 to 100>}\n'
     'The "intent" value must be copied exactly from the category list.\n'
     'The "confidence" value is how sure you are, from 0 (not sure at all) to '
     "100 (fully sure).\n\n"
-    "Categories:\n{intent_list}\n\n"
-    "Customer message:\n{text}\n"
+    "Categories:\n__INTENT_LIST__\n\n"
+    "Customer message:\n__TEXT__\n"
 )
 
 
 def build_prompt(text: str, intents: list[str]) -> str:
     """Builds the shared prompt for one message against the full intent list."""
     intent_list = "\n".join(f"- {i}" for i in intents)
-    return _INSTRUCTIONS.format(intent_list=intent_list, text=text)
+    return PROMPT_TEMPLATE.replace("__INTENT_LIST__", intent_list).replace("__TEXT__", text)
 
 
 @dataclass
