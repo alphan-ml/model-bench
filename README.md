@@ -44,9 +44,115 @@ notes (decisions made, open items, exact commands).
   network calls in CI — the pulled data is committed, so tests run against
   the files, not a live pull.
 
-Not yet built (later tasks): the cost meter (W-M1/W-M2), the web page and its
-two functions (W-A3), and the full 5-model × 3,080-row run against real
-Bedrock (W-A4, needs Gate 1 credentials first).
+Not yet built (later tasks): the model-bench use-case web page and its two
+functions (W-A3), and the full 5-model × 3,080-row run against real Bedrock
+(W-A4, needs Gate 1 credentials first). The cost meter's live-Neon wiring
+(W-M2) is also not yet built — see below for what the cost meter is today.
+
+## Cost Meter (task W-M1)
+
+A shared module, used by both Model Bench and AREA, that records every
+model call as one `usage_events` row and serves three small read-only API
+endpoints so anyone can see what a run actually cost. It lives in
+`web/api/meter/` — plain Node, zero runtime dependencies, so a Vercel cold
+start has nothing to install. Python never deploys here (BUILD INSTRUCTION
+rule 9).
+
+What's built now:
+
+- `cost.js` — the cost formula, kept identical to `modelbench.metrics.cost_per_1k`.
+- `store.js` — reads fixture data (`fixtures/usage_events.fixture.json`);
+  this is the one seam that changes when W-M2 wires up a real Neon database.
+- `rate-limit.js` — a per-IP, in-memory rate limiter (60 requests/10 min).
+  This limits abuse, not spend — visitors are never blocked for cost
+  (BUILD INSTRUCTION rule 6).
+- `session.js`, `ledger.js`, `health.js` — the three endpoints from
+  `SPEC-cost-meter-and-angi-reuse.md` §1.2: `GET /api/meter/session?id=`,
+  `GET /api/meter/ledger?window=&group=`, `GET /api/meter/health`.
+- `schema.sql` — the `usage_events` table definition for the eventual
+  Postgres/Neon database, including the CHECK constraints on `use_case`
+  and `step`.
+- `meter-widget.js` — the bottom-right "Cost meter" pill + drawer, shared
+  by every use-case page (`SPEC-cost-meter-and-angi-reuse.md` §1.3): live
+  session total (4 decimals) and call count on the pill; an itemized table
+  (step, model, tokens in/out, cost to 6 decimals, latency) and a "Copy as
+  CSV" button in the drawer. The session id lives only in memory for the
+  tab — no cookies, and a page reload starts a new session, as the spec
+  requires.
+- `charts.js` — a small hand-built inline-SVG bar chart (title, axis
+  lines, tick values, bold axis titles, no gridlines, value labels drawn
+  on/above each bar) used by the ledger page below. No charting library —
+  this is easier to make match BUILD INSTRUCTION rule 11 exactly than a
+  general-purpose one.
+- `cost-ledger.js` + `cost-ledger.html` — the standalone `/use-cases/cost-ledger`
+  page: an "Overall insights" bullet card (month-to-date cost, cheapest
+  and dearest step per answer, cost share by use case), four charts (cost
+  per day, by use case, by model, and cost-per-answer by step), and a
+  cost-by-day table. Every number is fetched live from `/api/meter/health`
+  and `/api/meter/ledger` at load — nothing is hard-coded.
+
+This task's scope is deliberately fixture-only: no secrets, no live
+database connection (see `SPEC-cost-meter-and-angi-reuse.md` §6, W-M1).
+W-A3/W-A4/W-B4/W-B5 wire the widget into their own pages' `<script>` tags
+(see `meter-widget.js`'s header comment for the integration snippet); this
+task builds and tests it against fixtures only.
+
+### Viewing the widget and ledger page in a browser
+
+```bash
+cd web
+npm install
+node dev-server.js        # http://localhost:3000/cost-ledger.html
+```
+
+`dev-server.js` is a zero-dependency local-only server (never deployed —
+Vercel does its own routing in production) that serves the static files
+here and adapts the three `api/meter/*.js` handlers to plain Node `http`,
+unchanged, so what you see is the real handler code running against the
+fixture data. `dev-widget-preview.html` (also dev-only) mounts the pill +
+drawer pinned to a fixture session, for checking the widget itself the
+same way.
+
+### Running the web tests
+
+```bash
+cd web
+npm install
+npm test
+```
+
+Most of the suite (cost math, rate limiting, the three endpoint handlers,
+the fixture store) needs nothing beyond Node — it runs standalone.
+
+### Testing the cost-meter schema
+
+`tests/schema.test.js` runs `api/meter/schema.sql` against a **real**
+PostgreSQL 16 database and checks that its constraints actually reject bad
+rows (an unrecognized `use_case`, a negative `cost_usd`, and so on) — a
+text/regex check on the SQL can't catch a typo'd constraint name or a
+CHECK expression that silently never fires, so this test executes the DDL
+for real. It needs a `TEST_DATABASE_URL` environment variable pointing at
+an empty scratch database; without it, this file's tests are **skipped**
+(reported as `skipped`, not `pass`) with a message saying why — CI always
+sets this variable (see `.github/workflows/ci.yml`'s `web-test` job, which
+runs a `postgres:16` service container), so these tests are never silently
+skipped there.
+
+To run them locally with Docker:
+
+```bash
+docker run -d --name modelbench-test-db \
+  -e POSTGRES_USER=modelbench_test \
+  -e POSTGRES_PASSWORD=modelbench_test_pw \
+  -e POSTGRES_DB=modelbench_schema_test \
+  -p 5432:5432 postgres:16
+
+cd web
+TEST_DATABASE_URL="postgresql://modelbench_test:modelbench_test_pw@localhost:5432/modelbench_schema_test" npm test
+```
+
+Or, with a local PostgreSQL 16 install: create a role and an empty
+database, then point `TEST_DATABASE_URL` at it the same way.
 
 ## Run it yourself (60 seconds)
 
