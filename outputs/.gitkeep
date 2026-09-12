@@ -1,0 +1,2 @@
+Per-model run outputs (outputs/<model_key>.jsonl) land here starting in W-A2.
+They are committed to the repo per SPEC-model-bench.md section 2.
