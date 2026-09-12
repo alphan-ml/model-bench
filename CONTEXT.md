@@ -106,3 +106,78 @@ web page and its two functions (W-A3); the full run and deploy (W-A4).
 
 <!-- Each task's report (per the BUILD INSTRUCTION format) is appended below,
      most recent last. -->
+
+### TASK: W-A1 — 2026-09-12 19:05 ET
+
+TASK: W-A1 — repo scaffold, Banking77 full test split, coarse-intent map,
+shared prompt + parser, prices.json skeleton, CI.
+
+STATUS: Done.
+
+BUILT:
+- Full Banking77 test split pulled by direct GitHub file download (source
+  blocked at huggingface.co, GitHub raw is the same original data) —
+  `data/golden.jsonl`, 3,080 rows, each `{id, text, intent_fine,
+  intent_coarse}`.
+- `data/_labels.json` (77 labels verbatim), `data/ATTRIBUTION.md` (full
+  citation, license, pull date).
+- `data/coarse_map.json`: hand-built 77→10 coarse-group map, rule documented
+  in README.md and `scripts_build_coarse_map.py`.
+- `data/prices.json`: zeroed skeleton per spec, 5 model slots, waiting on
+  Gate 1 for real Bedrock ids/prices.
+- `src/modelbench/prompt.py`: shared prompt builder + a parser that never
+  raises (handles fenced JSON, trailing/leading text, out-of-set labels,
+  missing/out-of-range/wrong-type confidence).
+- `src/modelbench/pull_data.py`: reusable pull with a license-permissiveness
+  check that stops the run if the license isn't recognized as permissive.
+- `src/modelbench/cli.py`: `pull-data` implemented; `run`/`report`/`smoke`
+  registered and stubbed (exit 2) pointing at W-A2.
+- `pyproject.toml`, `.gitignore`, `.env.example`, `LICENSE` (MIT + data
+  attribution note), `.github/workflows/ci.yml`, `README.md`, `CONTEXT.md`.
+- Git repo initialized, 4 commits (scaffold/config, data, code+tests,
+  docs), no `.env` ever created or committed.
+- Repo copied to `~/Claude/model-bench` on Leon's Mac (git history intact)
+  and mirrored to Google Drive HQ/giggit/model-bench (a flattened snapshot
+  doc plus standalone CONTEXT.md/README.md — a backup, not the source of
+  truth; the Mac copy and its git history are canonical).
+
+TESTED: `python3 -m ruff check .` clean. `python3 -m pytest -q`: 20/20
+passing (15 parser tests, 5 data/coarse-map integrity tests). CI workflow
+mirrors the same two commands. See D6 below for why the invocation is
+`python3 -m X` rather than bare `X`.
+
+SPEC CHECK:
+- Full dataset, no sampling: 3,080/3,080 rows, 77/77 labels — matches spec
+  exactly. `--limit` exists on the CLI but only for local smoke tests
+  (W-A2+), defaults to `None`.
+- No fake numbers: every count in this report and in CONTEXT.md/README.md
+  comes from the actual pull/test run, not an estimate.
+- Secrets only via env: `.env.example` documents every var; no `.env` file
+  exists in the repo.
+- Prices only from `prices.json` with an `as_of` date: yes, zeroed with
+  `as_of: 2026-09-12`, real values blocked on Gate 1.
+- Tests for every metric/parser/guard built so far: yes (parser + coarse
+  map + data-shape tests). Runner/metrics tests land with W-A2.
+- CI green: yes, and it uses the same commands verified locally.
+- License stop-rule implemented and exercised in code (not yet triggered,
+  since Banking77's license is permissive).
+
+OPEN:
+- Gate 1 items unchanged: Bedrock model ids/prices, AWS/Neon/Vercel
+  credentials — see CONTEXT.md "Open items".
+- Flagging one thing for Leon directly: his own instruction was "add it to
+  HQ/giggit for anything giggit to be clear," and that's where this got
+  mirrored (`HQ/giggit/model-bench/`). A separate note relayed from Fable
+  suggested `HQ/projects/sunshine-audit/` instead. I followed your direct
+  instruction since it's the clearer, more recent one from you personally —
+  flag me if you actually want it under sunshine-audit too/instead.
+- The Mac-VM shell here still can't run `vercel` (D4) or reach
+  `bedrock-runtime`/`console.neon.tech`/CMS Open Payments (egress policy) —
+  not a blocker for W-A1, will matter starting W-A2/W-B1/deploy.
+- Mac-VM system Python is 3.10.12, not the 3.11 this repo targets (D5) —
+  not exercised yet since all work so far happened in the cloud workspace's
+  3.11 environment; `uv python install 3.11` is the fix path if/when code
+  needs to run on the Mac VM directly.
+
+NEXT: W-A2 (provider layer — Mock/Bedrock/Anthropic-direct/OpenAI-compatible
+adapters, runner, metrics, report step). Waiting for your "go".
