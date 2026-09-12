@@ -228,6 +228,52 @@ python3 -m modelbench.cli pull-data
   verification. No other content in the reports was affected — this was a
   label error on the heading only, not a factual error about what was
   built or tested.
+- D18 — 2026-09-12 (W-A3) — `web/package.json` gains its first runtime
+  dependency, `@aws-sdk/client-bedrock-runtime`, mirroring D10's `boto3`
+  choice on the Python side: hand-rolling AWS SigV4 signing for the
+  Bedrock Converse API in plain `fetch` is not a good trade for the one
+  real (non-fallback) model path this page has. Everything else in
+  `web/` stays zero-runtime-dependency by design.
+- D19 — 2026-09-12 (W-A3, disclosed judgment call) — `SPEC-model-bench.md`
+  §7 names accuracy, cost, latency, and calibration as the four things
+  this page compares, but doesn't name exactly 4 headline chart panels or
+  which single latency number (p50 vs p95) to chart. Built as 4 charts —
+  accuracy (fine), cost per 1,000 messages, p50 latency, and Brier score
+  (calibration's single-number summary; the fuller calibration picture is
+  its own scatter chart+tables lower down) — because that is one chart
+  per compared dimension and matches the leaderboard's own column order.
+  p50 (not p95) was picked as the "typical" number worth a headline
+  panel; p95 stays in the leaderboard table for the slow-case reader.
+  Flagging for Leon in case a different 4th panel or p95 was intended.
+- D20 — 2026-09-12 (W-A3, self-caught bugs) — Two real bugs found by
+  Playwright-screenshotting the actual rendered page, not by reading the
+  code (same pattern as D16): (1) the page's `/api/health` fetch callback
+  was unconditionally overwriting `#methodology-prices-as-of` — which
+  `render()` had already set correctly from the embedded results' own
+  `prices_as_of`, i.e. the pricing snapshot the leaderboard's cost column
+  was actually computed from — with the live health endpoint's current
+  `prices_as_of`. Since prices can be updated after a results run, this
+  could silently print a date that doesn't match the leaderboard's own
+  numbers. Fixed by scoping that fetch callback to only the two
+  call-counter fields it's actually needed for. (2) `.calibration-layout`'s
+  CSS grid used the default `align-items: stretch`, so the much shorter
+  `#chart-calibration` cell was stretched to match the much taller
+  `#reliability-tables` column (5 full 10-row tables vs. one chart),
+  leaving a large empty gap below a chart with no reason to grow. Fixed
+  with `align-items: start` plus `#chart-calibration svg { width: 100%;
+  height: auto; }`. Both verified fixed by rebuilding and re-screenshotting
+  the page (before/after), not just by re-reading the changed CSS/JS.
+- D21 — 2026-09-12 (W-A3) — `web/index.html` (the built page, produced by
+  `scripts_build_web_page.py` from a results JSON) is gitignored, not
+  committed — it is a build output, not source, the same way `dist/`
+  already isn't committed. Before Gate 1 the only results file that
+  exists is `results.sample.json` (synthetic per-model numbers, clearly
+  marked with a `sample_disclosure` field); committing a built page under
+  the real production filename `index.html` risked that sample-data page
+  being mistaken for real output sitting in the repo, which conflicts
+  with the "no fake/invented numbers ever" rule even though every number
+  in it is honestly labeled as sample data. Anyone can reproduce it
+  locally with the one command in README.md's new Model Bench section.
 
 ## Open items (blocked on Leon / Gate 1)
 
@@ -247,13 +293,21 @@ python3 -m modelbench.cli pull-data
 - D16 (above): the cost-ledger page's day-level chart/table use "Mon D"
   instead of the spec's literal "Mon YY" — flag if "Mon YY" was meant for
   a different (coarser) chart.
+- D19 (above): the model-bench page's 4 headline charts (accuracy, cost,
+  p50 latency, Brier) — flag if a different 4th panel or p95 was meant.
+- Real Bedrock calls from `/api/run-one` can't be tested end-to-end until
+  Gate 1 lands: today every model in the live box correctly shows "Model
+  not yet configured (Gate 1 pending)" (verified in a real browser), but
+  the actual `callBedrockConverse` success path is only exercised by unit
+  tests against a fake client, not a real Bedrock call.
 
 ## Not yet built
 
-Cost meter's live-Neon wiring (W-M2) — everything else in W-M1 (schema,
-API, widget, ledger page) is built, see the Cost Meter section of
-README.md; the model-bench web page and its two functions (W-A3); the
-full run and deploy (W-A4, needs Gate 1 credentials first).
+Cost meter's live-Neon wiring (W-M2); the model-bench page's own real
+run (needs Gate 1 prices/credentials to call Bedrock for real and
+produce a non-sample `results.json` — `report`/the full pipeline itself
+was already built in W-A2); AREA (W-B1/W-B2); the full run and deploy
+(W-A4, needs Gate 1 credentials first).
 
 ## Reports
 

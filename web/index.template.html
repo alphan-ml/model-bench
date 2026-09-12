@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Model Bench — giggitai.com</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;600&display=swap" rel="stylesheet" />
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 20px 100px;
+    font-family: 'Lexend', sans-serif; font-weight: 300; font-size: 16px;
+    color: #111111; background: #ffffff;
+  }
+  h1, h2, h3 { font-weight: 600; color: #111111; }
+  h1 { font-size: 28px; margin: 0 0 4px 0; }
+  h2 { font-size: 20px; margin: 40px auto 12px; max-width: 1000px; }
+  h3 { font-size: 15px; margin: 0 0 8px 0; }
+  .subtitle { margin: 0 auto 24px; max-width: 1000px; }
+  .key-term { color: #1a56db; font-weight: 600; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .card {
+    border: 1px solid #111111; border-radius: 10px; padding: 20px 24px;
+    max-width: 1000px; margin: 0 auto 8px;
+  }
+  .card h2 { margin-top: 0; margin-left: 0; }
+  .card ul { margin: 0; padding-left: 20px; }
+  .card li { margin-bottom: 10px; }
+  .table-wrap { max-width: 1000px; margin: 0 auto; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 8px 10px; white-space: nowrap; }
+  th { font-weight: 600; border-bottom: 2px solid #111111; }
+  td { border-bottom: 1px solid #111111; }
+  tbody tr:nth-child(even) { background: #f5f5f5; }
+  .charts {
+    display: grid; grid-template-columns: 1fr; gap: 24px;
+    max-width: 1000px; margin: 0 auto;
+  }
+  @media (min-width: 760px) {
+    .charts { grid-template-columns: 1fr 1fr; }
+  }
+  .charts svg { width: 100%; height: auto; }
+  .calibration-layout {
+    display: grid; grid-template-columns: 1fr; gap: 24px; max-width: 1000px; margin: 0 auto;
+    /* align-items: start (not the grid default "stretch") -- the
+       reliability-tables column is much taller than the single
+       calibration chart (5 full 10-row tables vs. one chart), and
+       "stretch" was pulling the chart's grid cell down to match that
+       height, leaving a large empty gap below a chart that had no
+       reason to grow. Caught by a real rendered screenshot, not by
+       reading the code (D16-style). */
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .calibration-layout { grid-template-columns: 1.1fr 0.9fr; }
+  }
+  #chart-calibration svg { width: 100%; height: auto; }
+  .reliability-model, .worst-model { margin-bottom: 20px; }
+  .worst-intents-grid {
+    display: grid; grid-template-columns: 1fr; gap: 24px;
+    max-width: 1000px; margin: 0 auto;
+  }
+  @media (min-width: 760px) {
+    .worst-intents-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .live-box { max-width: 1000px; margin: 0 auto; }
+  .live-box textarea {
+    width: 100%; min-height: 90px; font-family: 'Lexend', sans-serif; font-weight: 300;
+    font-size: 15px; padding: 10px 12px; border: 1px solid #111111; border-radius: 8px;
+    resize: vertical;
+  }
+  .live-box button {
+    margin-top: 10px; font-family: 'Lexend', sans-serif; font-weight: 600; font-size: 14px;
+    background: #1a56db; color: #ffffff; border: none; border-radius: 8px;
+    padding: 10px 20px; cursor: pointer;
+  }
+  .live-box button:disabled { opacity: 0.5; cursor: default; }
+  #live-box-results { margin-top: 16px; }
+  #live-box-error { color: #c81e1e; margin-top: 12px; }
+  .error { color: #c81e1e; }
+  .methodology-list { padding-left: 20px; }
+  .methodology-list li { margin-bottom: 8px; }
+  .loading { color: #111111; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Model Bench</h1>
+    <p class="subtitle">
+      Five hosted models route the same <span class="key-term">customer banking message</span> to the right
+      intent, on the full public Banking77 test split — <span class="key-term">accuracy</span>,
+      <span class="key-term">cost</span>, <span class="key-term">latency</span>, and
+      <span class="key-term">calibration</span>, side by side.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Overall insights</h2>
+    <ul id="insights-list"><li class="loading">Loading…</li></ul>
+  </div>
+
+  <h2>Leaderboard</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th><th>Accuracy (fine)</th><th>Accuracy (coarse)</th>
+          <th>Cost / 1,000 msgs</th><th>p50 latency</th><th>p95 latency</th><th>Brier</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-body"><tr><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2>Accuracy, cost, latency, calibration — by model</h2>
+  <div class="charts">
+    <div id="chart-accuracy"></div>
+    <div id="chart-cost"></div>
+    <div id="chart-latency"></div>
+    <div id="chart-brier"></div>
+  </div>
+
+  <h2>Calibration</h2>
+  <div class="calibration-layout">
+    <div id="chart-calibration"></div>
+    <div class="table-wrap" id="reliability-tables"></div>
+  </div>
+
+  <h2>Where the cheap model fails</h2>
+  <p class="wrap">Worst 10 fine-grained intents per model — the specific messages each model gets wrong most often.</p>
+  <div class="worst-intents-grid" id="worst-intents"></div>
+
+  <h2>Try it live</h2>
+  <div class="live-box">
+    <p>Paste a customer message and see how all 5 models route it, with cost and latency for each.</p>
+    <textarea id="live-box-input" placeholder="e.g. My card was swallowed by the ATM, what do I do?" maxlength="1000"></textarea>
+    <div>
+      <button id="live-box-submit" type="button">Run through 5 models</button>
+    </div>
+    <p id="live-box-error" hidden></p>
+    <div id="live-box-results"></div>
+  </div>
+
+  <h2>Methodology</h2>
+  <div class="wrap">
+    <ul class="methodology-list">
+      <li>Data: the public <span class="key-term">Banking77</span> dataset (PolyAI), test split, CC BY 4.0. Full
+        citation in the repository's ATTRIBUTION.md.</li>
+      <li><strong>n = <span id="methodology-n-rows">—</span></strong> messages, the full test split — no sampling.</li>
+      <li><strong>Accuracy (fine)</strong>: share of messages routed to the exact correct one of 77 intents.
+        <strong>Accuracy (coarse)</strong>: share routed to the correct one of 10 broader groups.</li>
+      <li><strong>Cost per 1,000 messages</strong>: mean input/output tokens per message, priced from the dated
+        sheet below.</li>
+      <li><strong>p50 / p95 latency</strong>: the typical and slow-case response time, in seconds.</li>
+      <li><strong>Brier score</strong>: how well a model's stated confidence matches its real accuracy — lower is
+        better, 0 is perfect.</li>
+      <li>Prices as of <strong id="methodology-prices-as-of">—</strong>. Results generated
+        <strong id="methodology-generated-at">—</strong>.</li>
+      <li>Known limits: one shared prompt for every model (not tuned per model), a single AWS region, and a
+        single day's run — model behavior can vary run to run.</li>
+      <li>Live box calls this month: <strong id="methodology-calls-this-month">—</strong>, estimated cost
+        <strong id="methodology-est-cost-this-month">—</strong>.</li>
+    </ul>
+  </div>
+
+  <script>
+    window.__RESULTS__ = /*__RESULTS_JSON__*/{};
+  </script>
+  <script type="module">
+    import { render } from './model-bench-render.js';
+    import { mountLiveBox } from './model-bench-live-box.js';
+    import { initMeterWidget } from './meter-widget.js';
+
+    render(window.__RESULTS__);
+
+    const meter = initMeterWidget({ autoRefreshMs: 15000 });
+    mountLiveBox(meter);
+    meter.refresh();
+
+    // Only the live-box call counter comes from /api/health. The
+    // "Prices as of" bullet stays sourced from the inlined results object
+    // (render() already set it from methodologyFacts) -- it describes the
+    // pricing snapshot the LEADERBOARD's cost figures were actually
+    // computed from, which is not necessarily the same date as whatever
+    // prices.json says right now (a bug caught by looking at a real
+    // rendered page, not just reading the code: an earlier version of
+    // this block overwrote the results' own prices-as-of with the live
+    // health endpoint's, which could silently print a date that doesn't
+    // match the leaderboard's own numbers).
+    fetch('/api/health').then((r) => r.json()).then((health) => {
+      document.getElementById('methodology-calls-this-month').textContent = String(health.calls_this_month ?? 0);
+      document.getElementById('methodology-est-cost-this-month').textContent =
+        `$${Number(health.est_cost_this_month_usd ?? 0).toFixed(4)}`;
+    }).catch(() => {
+      // The health endpoint is a nice-to-have counter, not load-bearing —
+      // a visitor never gets blocked or shown an error just because it's
+      // briefly unavailable (rule 6: visitors are never blocked for cost).
+    });
+  </script>
+</body>
+</html>

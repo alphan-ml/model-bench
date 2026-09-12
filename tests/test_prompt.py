@@ -1,6 +1,9 @@
-from modelbench.prompt import build_prompt, parse_response
+from pathlib import Path
+
+from modelbench.prompt import PROMPT_TEMPLATE, build_prompt, parse_response
 
 ALLOWED = ["card_arrival", "top_up_failed", "exchange_rate"]
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_valid_json():
@@ -110,3 +113,28 @@ def test_build_prompt_contains_all_intents_and_text():
         assert intent in prompt
     assert "Where is my card?" in prompt
     assert "JSON" in prompt
+
+
+def test_build_prompt_matches_manual_template_substitution():
+    """build_prompt() must equal substituting PROMPT_TEMPLATE's two tokens
+    directly -- this is the exact operation web/api/run-one.js performs in
+    JavaScript against data/prompt.txt, so if this ever drifts from
+    build_prompt()'s real behavior, the JS side would silently send a
+    different prompt than the Python side without any test catching it."""
+    intent_list = "\n".join(f"- {i}" for i in ALLOWED)
+    expected = PROMPT_TEMPLATE.replace("__INTENT_LIST__", intent_list).replace(
+        "__TEXT__", "Where is my card?"
+    )
+    assert build_prompt("Where is my card?", ALLOWED) == expected
+
+
+def test_prompt_txt_matches_python_template():
+    """data/prompt.txt (read by web/api/run-one.js) must be byte-identical
+    to modelbench.prompt.PROMPT_TEMPLATE. If this fails, someone edited
+    PROMPT_TEMPLATE without re-running `python3 scripts_export_prompt.py` --
+    run it and commit the regenerated file."""
+    on_disk = (REPO_ROOT / "data" / "prompt.txt").read_text(encoding="utf-8")
+    assert on_disk == PROMPT_TEMPLATE, (
+        "data/prompt.txt is out of sync with PROMPT_TEMPLATE -- run "
+        "`python3 scripts_export_prompt.py` and commit the result"
+    )

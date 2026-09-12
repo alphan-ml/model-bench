@@ -26,7 +26,7 @@ const LABEL_COLOR = '#ffffff';
  *   title: string,
  *   xLabel: string,
  *   yLabel: string,
- *   bars: { label: string, value: number }[],
+ *   bars: { label: string, value: number, color?: string }[],
  *   formatValue?: (n: number) => string,
  *   width?: number,
  *   height?: number,
@@ -58,6 +58,7 @@ export function renderBarChartSvg(opts) {
   const MIN_HEIGHT_FOR_INSIDE_LABEL = 20;
 
   const barsSvg = bars.map((b, i) => {
+    const barColor = b.color ?? BAR_COLOR;
     const barHeight = maxValue > 0 ? (b.value / maxValue) * plotH : 0;
     const x = margin.left + i * barGap + (barGap - barWidth) / 2;
     const y = margin.top + plotH - barHeight;
@@ -80,7 +81,7 @@ export function renderBarChartSvg(opts) {
     }
     const { text: xLabelText, full: xLabelFull } = fitLabel(b.label, barGap * 0.92, xLabelFontSize);
     return `
-      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" fill="${BAR_COLOR}" />
+      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" fill="${barColor}" />
       ${valueLabelSvg}
       <g>${xLabelFull !== xLabelText ? `<title>${escapeXml(xLabelFull)}</title>` : ''}<text x="${(x + barWidth / 2).toFixed(1)}" y="${(margin.top + plotH + 16).toFixed(1)}" text-anchor="middle" fill="${AXIS_COLOR}" style="${FONT}font-size:${xLabelFontSize}px;font-weight:300;">${escapeXml(xLabelText)}</text></g>
     `;
@@ -138,6 +139,84 @@ export function formatMonYy(isoDate) {
   const d = new Date(`${isoDate}T00:00:00Z`);
   const yy = String(d.getUTCFullYear()).slice(-2);
   return `${MONTH_NAMES[d.getUTCMonth()]} ${yy}`;
+}
+
+/** A small, fixed palette assigned to model keys in sorted-key order, so a
+ * model's color stays the same across every chart on a page (leaderboard
+ * bars, the calibration chart) as long as the same set of model keys is
+ * passed in — per BUILD INSTRUCTION rule 11, "identity colors constant per
+ * series." Not meant to scale past ~8 models; Model Bench compares 5. */
+export const MODEL_COLOR_PALETTE = [
+  '#1a56db', '#0f9d58', '#b45309', '#7c3aed', '#0891b2', '#c81e1e', '#4b5563', '#be185d',
+];
+
+/** @param {string[]} modelKeys @returns {Record<string,string>} key -> color */
+export function assignModelColors(modelKeys) {
+  const sorted = [...new Set(modelKeys)].sort();
+  const colorByKey = {};
+  sorted.forEach((key, i) => {
+    colorByKey[key] = MODEL_COLOR_PALETTE[i % MODEL_COLOR_PALETTE.length];
+  });
+  return colorByKey;
+}
+
+/**
+ * Calibration chart: stated confidence (x) vs observed accuracy (y), one
+ * point per reliability bin per model, all models on one plot, plus a
+ * dashed y=x diagonal marking perfect calibration. Per
+ * SPEC-model-bench.md §7.1 item 4: "one chart: stated confidence vs
+ * observed accuracy with a dashed diagonal." Each model keeps the color
+ * assignModelColors gives it, with a legend, so it reads consistently
+ * against that same model's bars elsewhere on the page (rule 11).
+ *
+ * @param {{
+ *   title: string, xLabel: string, yLabel: string,
+ *   series: { key: string, color: string, points: {x: number, y: number}[] }[],
+ *   width?: number, height?: number,
+ * }} opts
+ * @returns {string} an <svg>...</svg> string
+ */
+export function renderReliabilityChartSvg(opts) {
+  const { title, xLabel, yLabel, series, width = 640, height = 400 } = opts;
+  const margin = { top: 44, right: 150, bottom: 56, left: 64 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+
+  // Both axes are fixed to the 0..1 confidence/accuracy range (not
+  // data-dependent like the bar chart's y-max), so the dashed diagonal is
+  // always the true y=x line and every model's chart is directly
+  // comparable to every other page's calibration chart.
+  const xAt = (v) => margin.left + v * plotW;
+  const yAt = (v) => margin.top + plotH - v * plotH;
+
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  const xTicksSvg = ticks.map((t) => `<text x="${xAt(t).toFixed(1)}" y="${(margin.top + plotH + 16).toFixed(1)}" text-anchor="middle" fill="${AXIS_COLOR}" style="${FONT}font-size:10px;font-weight:300;">${Math.round(t * 100)}%</text>`).join('');
+  const yTicksSvg = ticks.map((t) => `<text x="${(margin.left - 8).toFixed(1)}" y="${(yAt(t) + 4).toFixed(1)}" text-anchor="end" fill="${AXIS_COLOR}" style="${FONT}font-size:10px;font-weight:300;">${Math.round(t * 100)}%</text>`).join('');
+
+  const diagonalSvg = `<line x1="${xAt(0).toFixed(1)}" y1="${yAt(0).toFixed(1)}" x2="${xAt(1).toFixed(1)}" y2="${yAt(1).toFixed(1)}" stroke="${AXIS_COLOR}" stroke-width="1.25" stroke-dasharray="4 4" />`;
+
+  const pointsSvg = (series ?? []).map((s) => (s.points ?? []).map((p) => (
+    `<circle cx="${xAt(p.x).toFixed(1)}" cy="${yAt(p.y).toFixed(1)}" r="4" fill="${s.color}" />`
+  )).join('')).join('');
+
+  const legendSvg = (series ?? []).map((s, i) => `
+    <circle cx="${(width - margin.right + 16).toFixed(1)}" cy="${(margin.top + i * 18 + 4).toFixed(1)}" r="4" fill="${s.color}" />
+    <text x="${(width - margin.right + 26).toFixed(1)}" y="${(margin.top + i * 18 + 8).toFixed(1)}" fill="${AXIS_COLOR}" style="${FONT}font-size:11px;font-weight:300;">${escapeXml(s.key)}</text>
+  `).join('');
+
+  return `
+<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${escapeXml(title)}">
+  <text x="${width / 2}" y="22" text-anchor="middle" fill="${AXIS_COLOR}" style="${FONT}font-size:16px;font-weight:600;">${escapeXml(title)}</text>
+  <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + plotH}" stroke="${AXIS_COLOR}" stroke-width="1.5" />
+  <line x1="${margin.left}" y1="${margin.top + plotH}" x2="${margin.left + plotW}" y2="${margin.top + plotH}" stroke="${AXIS_COLOR}" stroke-width="1.5" />
+  ${xTicksSvg}
+  ${yTicksSvg}
+  ${diagonalSvg}
+  ${pointsSvg}
+  ${legendSvg}
+  <text x="${(margin.left + plotW / 2).toFixed(1)}" y="${height - 8}" text-anchor="middle" fill="${AXIS_COLOR}" style="${FONT}font-size:12px;font-weight:600;">${escapeXml(xLabel)}</text>
+  <text x="14" y="${(margin.top + plotH / 2).toFixed(1)}" text-anchor="middle" fill="${AXIS_COLOR}" style="${FONT}font-size:12px;font-weight:600;" transform="rotate(-90 14 ${(margin.top + plotH / 2).toFixed(1)})">${escapeXml(yLabel)}</text>
+</svg>`;
 }
 
 /** "2026-09-12" -> "Sep 12". D15-style disclosed judgment call: the spec

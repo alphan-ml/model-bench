@@ -154,6 +154,82 @@ TEST_DATABASE_URL="postgresql://modelbench_test:modelbench_test_pw@localhost:543
 Or, with a local PostgreSQL 16 install: create a role and an empty
 database, then point `TEST_DATABASE_URL` at it the same way.
 
+## Model Bench page (task W-A3)
+
+The actual use-case page at `web/index.html` (built from `web/index.template.html`
+by `scripts_build_web_page.py`, not hand-edited) plus its two Vercel
+functions, per `SPEC-model-bench.md` §7. This is the first page where
+`meter-widget.js` (W-M1) is embedded live.
+
+What's built now:
+
+- `web/index.template.html` — the page shell: title/subtitle, "Overall
+  insights" card, leaderboard table, 4 headline charts (accuracy, cost,
+  latency, Brier), a calibration chart + per-model reliability tables, a
+  "worst 10 intents" grid per model, the live "try it yourself" box, and
+  the methodology list. `window.__RESULTS__` is inlined by the build
+  script from a results JSON — never fetched at runtime, so the page has
+  no load-bearing network call for its own numbers.
+- `web/model-bench-render.js` — pure, DOM-free rendering functions
+  (leaderboard sort, the 4 headline insight bullets, chart specs, the
+  reliability scatter series, the worst-intents tables, methodology
+  facts) plus a `render()` that mounts them. Kept DOM-free so every
+  function is unit-testable without a browser.
+- `web/model-bench-live-box.js` — the "try it live" box: validates input
+  (max 1,000 characters), POSTs to `/api/run-one`, and renders the
+  5-model answer table, including the plain-English errors the API can
+  return.
+- `web/api/model-bench-prompt.js` — a byte-for-byte JS port of
+  `src/modelbench/prompt.py`'s prompt-building and response-parsing
+  logic, sharing the same template text via `data/prompt.txt` (see D-prompt
+  below) so Python and JS never drift.
+- `web/api/run-one.js` — `POST /api/run-one`: validates the message,
+  builds the shared prompt, calls all 5 Bedrock models in parallel
+  (`@aws-sdk/client-bedrock-runtime` — see the dependency note below),
+  logs a usage event and increments the monthly call counter per model
+  (best-effort, never blocks the response), and returns each model's
+  answer, cost, and latency. A model whose `data/prices.json` entry is
+  still a Gate-1 placeholder degrades gracefully to a plain-English
+  "Model not yet configured (Gate 1 pending)" answer instead of calling
+  Bedrock or erroring.
+- `web/api/health.js` — `GET /api/health`: results-file freshness
+  (`results_as_of`), the prices sheet's `as_of` date, and this month's
+  live-box call count and estimated cost — the numbers the methodology
+  section's last two bullets show.
+- `web/api/model-bench-counter.js` — the in-memory write-seam for usage
+  events and the monthly counter (same pattern as W-M1's `store.js`);
+  W-M2 replaces this with real Neon writes.
+- `scripts_build_web_page.py` — embeds a results JSON into the template
+  at `window.__RESULTS__`. Defaults to `results.json` and refuses to run
+  if it doesn't exist yet (prints a clear message pointing at
+  `--results results.sample.json` for local development) — this keeps a
+  sample/fixture build from ever being mistaken for production output.
+- `results.sample.json` — real Banking77 label/intent data, but
+  synthetic per-model numbers (clearly marked `"sample_disclosure"` in
+  the file itself), used only for local development and the screenshots
+  in this task's report. Never used by the default build.
+
+The prompt template (`data/prompt.txt`, exported by
+`scripts_export_prompt.py` from `src/modelbench/prompt.py`'s
+`PROMPT_TEMPLATE`) uses `__INTENT_LIST__`/`__TEXT__` string-replace
+tokens rather than `.format()`-style braces, so the same literal text
+substitutes identically in both Python and JavaScript with no
+escaping rules to keep in sync — verified byte-identical by a test in
+each language.
+
+### Viewing the Model Bench page in a browser
+
+```bash
+cd web
+npm install
+python3 ../scripts_build_web_page.py --results ../results.sample.json --out index.html
+node dev-server.js        # http://localhost:3000/index.html
+```
+
+Real Bedrock calls need Gate-1 credentials; until then the live box's
+5 answers correctly show "Model not yet configured" for every model
+(verified in a real browser, not just by reading the code).
+
 ## Run it yourself (60 seconds)
 
 ```bash

@@ -1,6 +1,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderBarChartSvg, formatMonYy, formatMonD, fitLabel, escapeXml } from '../charts.js';
+import {
+  renderBarChartSvg, renderReliabilityChartSvg, assignModelColors,
+  formatMonYy, formatMonD, fitLabel, escapeXml,
+} from '../charts.js';
 
 describe('renderBarChartSvg', () => {
   const basic = () => renderBarChartSvg({
@@ -95,6 +98,15 @@ describe('renderBarChartSvg', () => {
     assert.ok(darkLabelYs[0] >= 44 + 12 - 0.5, 'the fallback label should still stay within the plot area, not above the title');
   });
 
+  test('a bar with its own color overrides the default bar color (identity color per model, rule 11)', () => {
+    const svg = renderBarChartSvg({
+      title: 't', xLabel: 'x', yLabel: 'y',
+      bars: [{ label: 'model-a', value: 1, color: '#0f9d58' }, { label: 'model-b', value: 1 }],
+    });
+    assert.match(svg, /<rect[^>]*fill="#0f9d58"/, 'the colored bar uses its own color');
+    assert.match(svg, /<rect[^>]*fill="#1a56db"/, 'a bar with no color falls back to the chart default');
+  });
+
   test('truncates a long category label instead of letting it overlap its neighbor', () => {
     const svg = renderBarChartSvg({
       title: 't', xLabel: 'x', yLabel: 'y',
@@ -110,6 +122,74 @@ describe('renderBarChartSvg', () => {
     assert.doesNotMatch(svg, /<text[^>]*>anthropic\.claude-3-5-sonnet-20240620-v1:0<\/text>/, 'the RENDERED label should be truncated, not the full id');
     assert.match(svg, /…/, 'a truncated label ends in an ellipsis');
     assert.match(svg, /<title>anthropic\.claude-3-5-sonnet-20240620-v1:0<\/title>/, 'the full id is preserved in a tooltip');
+  });
+});
+
+describe('assignModelColors', () => {
+  test('gives every model key a color, stable regardless of input order', () => {
+    const a = assignModelColors(['nova', 'claude-haiku', 'mistral']);
+    const b = assignModelColors(['mistral', 'claude-haiku', 'nova']);
+    assert.deepEqual(a, b);
+    assert.equal(Object.keys(a).length, 3);
+  });
+
+  test('two different keys never collide on the same color within the palette size', () => {
+    const colors = assignModelColors(['a', 'b', 'c', 'd', 'e']);
+    assert.equal(new Set(Object.values(colors)).size, 5);
+  });
+});
+
+describe('renderReliabilityChartSvg', () => {
+  const basic = () => renderReliabilityChartSvg({
+    title: 'Calibration', xLabel: 'Stated confidence', yLabel: 'Observed accuracy',
+    series: [
+      { key: 'claude-haiku', color: '#1a56db', points: [{ x: 0.5, y: 0.4 }, { x: 0.9, y: 0.85 }] },
+      { key: 'nova', color: '#0f9d58', points: [{ x: 0.5, y: 0.6 }] },
+    ],
+  });
+
+  test('includes the title and both axis titles', () => {
+    const svg = basic();
+    assert.match(svg, />Calibration</);
+    assert.match(svg, />Stated confidence</);
+    assert.match(svg, />Observed accuracy</);
+  });
+
+  test('draws exactly the x and y axis lines, no gridlines', () => {
+    const svg = basic();
+    // The dashed diagonal is also a <line>, so axis lines + diagonal = 3.
+    const lineCount = (svg.match(/<line /g) ?? []).length;
+    assert.equal(lineCount, 3, 'x-axis, y-axis, and the dashed diagonal only');
+  });
+
+  test('the diagonal reference line is dashed', () => {
+    assert.match(basic(), /stroke-dasharray="4 4"/);
+  });
+
+  test('draws one point per series entry, in that series\' color', () => {
+    const svg = basic();
+    const blueCircles = (svg.match(/<circle[^>]*fill="#1a56db"/g) ?? []).length;
+    const greenCircles = (svg.match(/<circle[^>]*fill="#0f9d58"/g) ?? []).length;
+    // 2 data points + 1 legend swatch for claude-haiku; 1 data point + 1
+    // legend swatch for nova.
+    assert.equal(blueCircles, 3);
+    assert.equal(greenCircles, 2);
+  });
+
+  test('legend lists every series by key', () => {
+    const svg = basic();
+    assert.match(svg, />claude-haiku</);
+    assert.match(svg, />nova</);
+  });
+
+  test('handles an empty series list without throwing', () => {
+    assert.doesNotThrow(() => renderReliabilityChartSvg({ title: 't', xLabel: 'x', yLabel: 'y', series: [] }));
+  });
+
+  test('handles a series with no points without throwing', () => {
+    assert.doesNotThrow(() => renderReliabilityChartSvg({
+      title: 't', xLabel: 'x', yLabel: 'y', series: [{ key: 'a', color: '#000', points: [] }],
+    }));
   });
 });
 
