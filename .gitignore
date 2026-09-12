@@ -11,3 +11,5 @@ venv/
 .DS_Store
 node_modules/
 # outputs/*.jsonl is committed per spec (section 2) — do not ignore it.
+# `modelbench smoke` writes here instead, never to outputs/ — never commit it.
+.smoke_outputs/
