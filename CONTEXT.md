@@ -241,3 +241,93 @@ OPEN:
 
 NEXT: W-A2 (provider layer — Mock/Bedrock/Anthropic-direct/OpenAI-compatible
 adapters, runner, metrics, report step). Waiting for your "go".
+
+### TASK: W-A2 — 2026-09-12 19:30 ET
+
+TASK: W-A2 — provider layer (Bedrock, Anthropic-direct, OpenAI-compatible,
+fake adapters), runner, metrics, report step.
+
+STATUS: Done.
+
+BUILT:
+- `src/modelbench/providers/base.py`: `CallResult` dataclass (per spec,
+  plus the cost-meter addendum's session_id/use_case/step fields, unused
+  for now), `Provider` protocol, and `call_with_retries` — a shared retry
+  helper (5 attempts, exponential backoff + jitter, retryable errors only).
+- `src/modelbench/providers/bedrock.py`: Converse API via boto3, region
+  from `AWS_REGION`, token counts from the service's usage block.
+- `src/modelbench/providers/anthropic_direct.py` and
+  `openai_compatible.py`: fallback-only adapters, stdlib `urllib` (no SDK
+  dependency), same retry contract.
+- `src/modelbench/providers/fake.py`: local-smoke-tests-only adapter —
+  reads the allowed intents back out of the prompt and returns a
+  valid-shaped random answer; never a real run choice.
+- `src/modelbench/runner.py`: `run(model_key, ...)` — resumable/idempotent
+  (skips ids already in `outputs/<model_key>.jsonl`), bounded worker pool
+  (default 10), one JSON line per row, progress every 100 rows. Defense in
+  depth: the whole per-row worker is wrapped so a bug in any adapter can
+  only ever fail that one row (see D11).
+- `src/modelbench/metrics.py`: `accuracy_fine`, `accuracy_coarse`,
+  `cost_per_1k`, `latency_p50_p95`, `brier`, `reliability_bins`,
+  `per_intent` — all pure functions.
+- `src/modelbench/report.py`: `build_report()` joins `outputs/*.jsonl` with
+  `golden.jsonl`/`prices.json` into `results.json`; refuses to run against
+  zero-priced models (`ZeroPricesError`); `check_results_schema()` is the
+  reusable CI-gate logic.
+- `cli.py`: `run`/`report`/`smoke` are real now. `smoke` runs 20 real
+  Banking77 rows through the fake adapter, no network or secrets, writing
+  to a new gitignored `.smoke_outputs/` (never `outputs/`).
+- 3 commits (provider layer; runner/metrics/report/cli; docs), on top of
+  W-A1's 5. Repo re-synced to `~/Claude/model-bench` on Leon's Mac and
+  re-mirrored to Drive HQ/giggit/model-bench.
+
+TESTED: `python3 -m ruff check .` clean. `python3 -m pytest -q`: 60/60
+passing (up from 20 — 40 new tests: provider-layer mocks, a hand-computed
+metrics toy set, results-schema fixtures, runner resumability). Also ran
+the CLI by hand: `modelbench smoke` (20/20 rows, 0 errors, exit 0),
+`modelbench report` (correctly refuses with a clear STOP message against
+zero prices, exit 1), and `modelbench run --model claude-haiku --limit 2`
+with no AWS credentials set (correctly writes 2 clean error rows and exits
+1, rather than crashing) — then deleted that manual test's output from
+`outputs/claude-haiku.jsonl` so no throwaway data was left committed.
+
+SPEC CHECK:
+- "Tests mock the network; no test calls a real API" (section 5): yes —
+  boto3's client and `urllib.request.urlopen` are both mocked everywhere.
+- Retry policy matches section 5 exactly (5 attempts, backoff+jitter,
+  throttling/5xx only) and is shared by all three real adapters.
+- "A run is all one adapter" (section 5): yes — `run()` resolves one
+  provider for the whole call, never mixes per-row.
+- Runner matches section 6.1 field-for-field (the 15 named fields),
+  resumable/idempotent (tested), progress every 100 rows, bounded pool.
+- Metrics formulas match section 6.2 exactly, verified against a
+  hand-computed toy set (values computed independently in the test file,
+  not by calling the functions under test).
+- Report matches section 6.3's `results.json` shape; zero-price refusal
+  implemented and exercised (not just described).
+- No fake/illustrative numbers: `modelbench smoke`'s output is clearly
+  separated from real results (own directory, own model_id, never
+  committed) and this report only cites numbers from the actual test run
+  and manual CLI checks above.
+
+OPEN:
+- Gate 1 items unchanged (Bedrock ids/prices, AWS/Neon/Vercel creds) — see
+  "Open items" above.
+- Two bugs I found and fixed myself before reporting this done, since they
+  matter for anyone reading this later: (1) `BedrockProvider` used to crash
+  the entire run with an uncaught `RuntimeError` if `AWS_REGION` wasn't
+  set — fixed, plus added a defense-in-depth try/except around every
+  per-row worker so no adapter bug can do that again; caught by manually
+  running the CLI, not by a pre-existing test, so I added a regression
+  test. (2) A `.gitignore` line with a trailing inline `# comment` doesn't
+  work — the whole line becomes one non-matching pattern — so
+  `.smoke_outputs/` was silently untracked-but-not-ignored until I fixed
+  it. Both are D11/D12 in the Decisions list above.
+- Not built yet: the openai_compatible/anthropic_direct adapters are
+  untested against a REAL endpoint (mocks only, per spec) — first real
+  exercise happens at Gate 1/W-A4 if Bedrock isn't available for a given
+  model key.
+
+NEXT: per the task order, W-M1 (cost meter: `usage_events` schema, cost
+function + tests, meter widget + ledger page against a fixture — no
+secrets needed yet) comes before W-A3. Waiting for your "go".
