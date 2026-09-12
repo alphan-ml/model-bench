@@ -216,6 +216,19 @@ python3 -m modelbench.cli pull-data
   4 — a single call can cost $0.00004, and 4-decimal rounding would print
   "$0.0000" for a real, nonzero cost.
 
+- D17 — 2026-09-12 (self-caught, all three reports) — Every task report's
+  "TASK: ... ET" timestamp (W-A1, W-A2, W-M1) was actually the commit's
+  UTC time with "ET" mislabeled onto it, not a real ET conversion — e.g.
+  W-A1 said "19:05 ET" but its commit (`5849e9e`) is timestamped
+  `2026-09-12T19:05:59+00:00` UTC, which is 15:05 EDT, four hours earlier.
+  Caught while answering Leon's question about session/context state, by
+  checking `git log --date=iso-strict` against the reports' stated times
+  rather than assuming they were right. Fixed all three headings below to
+  the correct EDT time, with the UTC commit timestamp kept alongside for
+  verification. No other content in the reports was affected — this was a
+  label error on the heading only, not a factual error about what was
+  built or tested.
+
 ## Open items (blocked on Leon / Gate 1)
 
 - Real Bedrock model ids + as-of prices for the 5 models in `data/prices.json`
@@ -247,7 +260,7 @@ full run and deploy (W-A4, needs Gate 1 credentials first).
 <!-- Each task's report (per the BUILD INSTRUCTION format) is appended below,
      most recent last. -->
 
-### TASK: W-A1 — 2026-09-12 19:05 ET
+### TASK: W-A1 — 2026-09-12 15:05 ET (commit timestamp 19:05:59 UTC)
 
 TASK: W-A1 — repo scaffold, Banking77 full test split, coarse-intent map,
 shared prompt + parser, prices.json skeleton, CI.
@@ -322,7 +335,7 @@ OPEN:
 NEXT: W-A2 (provider layer — Mock/Bedrock/Anthropic-direct/OpenAI-compatible
 adapters, runner, metrics, report step). Waiting for your "go".
 
-### TASK: W-A2 — 2026-09-12 19:30 ET
+### TASK: W-A2 — 2026-09-12 15:26 ET (commit timestamp 19:26:39 UTC)
 
 TASK: W-A2 — provider layer (Bedrock, Anthropic-direct, OpenAI-compatible,
 fake adapters), runner, metrics, report step.
@@ -424,7 +437,7 @@ NEXT: per the task order, W-M1 (cost meter: `usage_events` schema, cost
 function + tests, meter widget + ledger page against a fixture — no
 secrets needed yet) comes before W-A3. Waiting for your "go".
 
-### TASK: W-M1 — 2026-09-12 20:40 ET
+### TASK: W-M1 — 2026-09-12 16:35 ET (commit timestamp 20:34:47 UTC)
 
 TASK: W-M1 — Cost Meter shared module: `usage_events` schema, cost
 function, the 3 read-only API endpoints, the client-side widget, and the
