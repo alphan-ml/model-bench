@@ -1,0 +1,38 @@
+[project]
+name = "modelbench"
+version = "0.1.0"
+description = "Compares hosted models on the Banking77 intent-routing task, with cost, latency, and calibration."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+# Added in W-A2 when the provider layer needs them:
+#   "boto3"                for the Bedrock adapter
+#   "anthropic"             for the direct-API fallback adapter
+# Added in W-M1/W-M2 when the cost meter is wired to Neon:
+#   "psycopg[binary]" or "neon" client library
+
+[project.scripts]
+modelbench = "modelbench.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
