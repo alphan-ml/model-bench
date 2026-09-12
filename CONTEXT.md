@@ -83,6 +83,66 @@ python3 -m modelbench.cli pull-data
   into and are unaffected. Switched `CONTEXT.md`, `README.md`, and CI to the
   `python3 -m` form defensively, in case another machine (Leon's Mac
   included) has a similar `PATH` shadowing setup.
+- D7 — 2026-09-12 (W-A2) — Two small additions beyond section 2's exact
+  repo layout: `src/modelbench/providers/fake.py` and `tests/test_runner.py`.
+  The task split (section 10) requires "smoke on a 20-row local fixture
+  using a fake provider" and a tested runner; a fake adapter needs to live
+  somewhere `get_provider()` and the `smoke` CLI command can both reach it,
+  and the runner needed its own resumability tests beyond what
+  test_providers_mock.py covers. `fake` is not a real adapter choice: it's
+  absent from `.env.example`'s documented `MODELBENCH_ADAPTER` values and
+  has no entry in `data/prices.json`; `get_provider()` still accepts it
+  (with a docstring/error message saying why) so both `smoke` and the tests
+  share one factory function instead of two code paths.
+- D8 — 2026-09-12 (W-A2) — `modelbench smoke` never touches `outputs/` or
+  `data/prices.json`: it writes to a new gitignored `.smoke_outputs/`
+  directory and passes an explicit `model_id="fake-model-v1"` override so
+  it can never collide with, or be silently mixed into, a real model's
+  committed output file. `runner.run()` accepts `model_id`/`out_path`
+  overrides for exactly this reason (and so tests never need real files).
+- D9 — 2026-09-12 (W-A2) — `CallResult` already carries `session_id`,
+  `use_case`, `step` per SPEC-cost-meter-and-angi-reuse.md section 4
+  ("Changes to the base specs" — this is a direct edit to section 5 of the
+  model-bench spec, so it applies now, not only when W-M1/W-M2 build the
+  cost meter). Nothing in W-A2 reads or writes these three fields; they
+  default to `None` and are simply carried through unused.
+- D10 — 2026-09-12 (W-A2) — `anthropic_direct.py` and `openai_compatible.py`
+  are implemented with the standard library (`urllib`) rather than the
+  `anthropic` SDK or an OpenAI client library. Both are fallback-only paths
+  (used only if Bedrock access isn't granted for a given model key), so
+  adding a dependency for each felt like the wrong trade — `boto3` is the
+  one real dependency added this task, for the primary Bedrock path, which
+  does need it (hand-rolling AWS SigV4 signing is not worth it).
+- D11 — 2026-09-12 (W-A2) — Self-caught bug, found by manually exercising
+  the CLI (not by a pre-existing test): `BedrockProvider.call()` used to
+  raise `RuntimeError("AWS_REGION is not set")` straight out of the method
+  instead of returning a `CallResult(error=...)` like the other adapters do
+  for missing configuration. Since `runner._process_one()` had no
+  try/except around the provider call, this would have crashed the entire
+  run — and lost every already-in-flight row's work along with it — the
+  first time anyone ran without `AWS_REGION` set, which directly
+  contradicts the "runs are resumable and idempotent" non-negotiable
+  (section 1). Fixed two ways: (1) `BedrockProvider.call()` now catches its
+  own client-setup failure and returns a normal error `CallResult`; (2)
+  `runner._process_one()` now wraps its whole body in a try/except as
+  defense in depth, so a bug in *any* adapter (present or future) can only
+  ever fail one row, never the batch. Added
+  `test_run_survives_a_provider_that_raises_instead_of_returning_a_call_result`
+  as a regression test in `tests/test_runner.py`.
+- D12 — 2026-09-12 (W-A2) — Also self-caught: the first version of
+  `.gitignore`'s `.smoke_outputs/` line had a trailing `# comment` on the
+  same line. `.gitignore` does not support inline comments — a `#` only
+  starts a comment if it is the first character of the line, so the whole
+  line became one (non-matching) literal pattern and `.smoke_outputs/` was
+  silently NOT ignored. Caught by running `git status`/`git check-ignore`
+  after a real `modelbench smoke` run and seeing the directory show up as
+  untracked; fixed by moving the comment to its own line above the pattern.
+- D13 — 2026-09-12 (W-A2) — `results.json`'s `worst_intents_fine` and
+  `worst_groups_coarse` store the FULL sorted list (all 77 fine intents /
+  all 10 coarse groups), not pre-truncated to 10. Section 7.1 item 5's
+  "worst 10 intents" is a page-rendering choice (W-A3); the canonical JSON
+  keeps the complete data so nothing has to be re-run to change how many
+  are displayed later.
 
 ## Open items (blocked on Leon / Gate 1)
 
@@ -99,8 +159,8 @@ python3 -m modelbench.cli pull-data
 
 ## Not yet built
 
-Provider layer, runner, metrics, report (W-A2); cost meter (W-M1/W-M2); the
-web page and its two functions (W-A3); the full run and deploy (W-A4).
+Cost meter (W-M1/W-M2); the web page and its two functions (W-A3); the full
+run and deploy (W-A4, needs Gate 1 credentials first).
 
 ## Reports
 
