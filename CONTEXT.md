@@ -167,6 +167,54 @@ python3 -m modelbench.cli pull-data
   rather than deleted, since delete permission on that shell was requested
   once and declined — see the W-A2 report's OPEN section for exactly what
   got left where after this task's recovery.
+- D15 — 2026-09-12 (W-M1) — **Spec conflict, quoting both lines** (per the
+  BUILD INSTRUCTION's own stop-rule wording): `SPEC-cost-meter-and-angi-reuse.md`
+  gives two different lists for `usage_events.step`. §1.1 (Data) says:
+  `step: 'text-to-intent' | 'text-to-sql' | 'text-to-plan' | 'compose' |
+  'verify' | 'live-box'`. §3 ("text-to-whatever" labeling) says: `Use these
+  labels for the step field: text-to-intent, text-to-plan, text-to-sql,
+  text-to-forecast-call, text-to-answer`. The two lists overlap (`text-to-intent`,
+  `text-to-sql`, `text-to-plan`) but each also has values the other doesn't
+  (§1.1 has `compose`, `verify`, `live-box`; §3 has `text-to-forecast-call`,
+  `text-to-answer`). Resolved by taking the UNION of both lists (8 distinct
+  values total) as the `CHECK` constraint in `web/api/meter/schema.sql`,
+  rather than picking one list and silently dropping the other's values —
+  a narrower constraint risks rejecting real rows AREA or Model Bench need
+  to log later, and nothing in either section says the other list is wrong
+  or superseded. This is disclosed here, in `schema.sql`'s own comments, and
+  in the W-M1 report's OPEN section below, rather than halting the task —
+  the union is safe (it only widens what's accepted) and blocking on this
+  would have stopped ~95% of otherwise-unblocked W-M1 work. Flagging for
+  Leon: if one of these two lists was meant to replace the other, say so
+  and the constraint narrows to match; until then the union stands. Verified
+  against a real PostgreSQL 16 database (not just read as text) — see
+  `web/tests/schema.test.js`'s "accepts every step value from BOTH spec
+  sections" test, which inserts all 8 values and confirms each is accepted,
+  and confirms an invalid 9th value is rejected.
+- D16 — 2026-09-12 (W-M1) — The cost-ledger page's per-day chart and table
+  use "Mon D" date labels (e.g. "Sep 12"), not the spec's literal "Mon YY"
+  (`SPEC-cost-meter-and-angi-reuse.md` §1.3: "dates as 'Mon YY'"). Caught
+  by visual verification (a real Playwright screenshot of the rendered
+  page, not just reading the code): with "Mon YY", every day inside the
+  same month renders the SAME label — the fixture's three days (Sep 10,
+  11, 12, all 2026) all showed as "Sep 26", making the day chart and table
+  unreadable (three bars/rows, one indistinguishable label). "Mon YY" is
+  kept (`charts.js`'s `formatMonYy`) for anything coarser than daily; "Mon
+  D" (`formatMonD`) is used specifically for the day-grouped chart/table,
+  where day-level distinction is the entire point. Flagging for Leon in
+  case "Mon YY" was meant for a different chart than the daily one.
+- Two more fixes from that same visual pass, not spec conflicts, just bugs
+  caught by looking at the rendered output rather than only the code: (1)
+  a short bar's value label used to be positioned with `Math.max` where it
+  needed `Math.min`, so it could slide past the x-axis line and collide
+  with the category label below it — now clamped inside the plot area;
+  (2) a bar too short to contain a legible white label used to render it
+  straddling the bar and the white page background (unreadable where it
+  crossed onto white) — bars shorter than ~20px now get a dark-text label
+  ABOVE the bar instead. Both have regression tests in `tests/charts.test.js`.
+  Also: the itemized drawer table shows cost to 6 decimals, not the pill's
+  4 — a single call can cost $0.00004, and 4-decimal rounding would print
+  "$0.0000" for a real, nonzero cost.
 
 ## Open items (blocked on Leon / Gate 1)
 
@@ -180,11 +228,19 @@ python3 -m modelbench.cli pull-data
   environment's egress policy per Fable's measurement. Each of those steps
   either needs to run from Leon's Mac Terminal directly, or needs the
   relevant token/credential wired in so a different network path is used.
+- D15 (above): the `usage_events.step` conflict between
+  `SPEC-cost-meter-and-angi-reuse.md` §1.1 and §3 — resolved as a union for
+  now; flag if one list should have replaced the other instead.
+- D16 (above): the cost-ledger page's day-level chart/table use "Mon D"
+  instead of the spec's literal "Mon YY" — flag if "Mon YY" was meant for
+  a different (coarser) chart.
 
 ## Not yet built
 
-Cost meter (W-M1/W-M2); the web page and its two functions (W-A3); the full
-run and deploy (W-A4, needs Gate 1 credentials first).
+Cost meter's live-Neon wiring (W-M2) — everything else in W-M1 (schema,
+API, widget, ledger page) is built, see the Cost Meter section of
+README.md; the model-bench web page and its two functions (W-A3); the
+full run and deploy (W-A4, needs Gate 1 credentials first).
 
 ## Reports
 
