@@ -1,0 +1,16 @@
+{
+  "name": "model-bench-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Node/Vercel side of model-bench: the Cost Meter shared module (W-M1/W-M2), and later the use-case page + its own functions (W-A3/W-A4). Python never deploys here (BUILD INSTRUCTION rule 9) — everything under this folder is plain Node, zero runtime dependencies by design so a Vercel cold start has nothing to install.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "pg": "^8.23.0"
+  }
+}

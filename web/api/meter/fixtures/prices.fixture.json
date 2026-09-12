@@ -1,0 +1,9 @@
+{
+  "_comment": "Test-only prices, in the same shape as model-bench/data/prices.json. Never used outside tests/fixture-mode handlers — real prices only ever come from data/prices.json (see SPEC-model-bench.md section 3.3).",
+  "as_of": "2026-09-12",
+  "models": {
+    "claude-haiku": {"input_per_1m": 0.25, "output_per_1m": 1.25},
+    "claude-sonnet": {"input_per_1m": 3.00, "output_per_1m": 15.00},
+    "nova": {"input_per_1m": 0.10, "output_per_1m": 0.30}
+  }
+}
