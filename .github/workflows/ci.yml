@@ -22,3 +22,47 @@ jobs:
 
       - name: Test
         run: python3 -m pytest -q
+
+  web-test:
+    # The Node/Vercel side (web/): the cost-meter API handlers and their
+    # tests. Python never deploys here (BUILD INSTRUCTION rule 9) — this
+    # is a separate job so a failure here never blocks or is blocked by
+    # the Python job above.
+    runs-on: ubuntu-latest
+    services:
+      # tests/schema.test.js runs api/meter/schema.sql against a real
+      # Postgres and checks that its constraints actually reject bad
+      # rows — not a text/regex check. This service container is what
+      # makes that test run for real in CI instead of skipping.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: modelbench_test
+          POSTGRES_PASSWORD: modelbench_test_pw
+          POSTGRES_DB: modelbench_schema_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U modelbench_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        env:
+          TEST_DATABASE_URL: postgresql://modelbench_test:modelbench_test_pw@localhost:5432/modelbench_schema_test
+        run: npm test
