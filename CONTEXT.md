@@ -615,3 +615,173 @@ NEXT: W-A3 (the model-bench use-case page + its two Vercel functions,
 `web/index.html` + `web/api/run-one.js` + `web/api/health.js`, per
 SPEC-model-bench.md §7 — this is where `meter-widget.js` first gets
 embedded in a real page). Waiting for your "go".
+
+### TASK: W-A3 — 2026-09-12 18:07 ET (commit timestamp 21:55:26 UTC)
+
+TASK: W-A3 — Model Bench use-case page (`web/index.html`, built from a
+new `web/index.template.html`) and its two Vercel functions: `POST
+/api/run-one` and `GET /api/health`, per `SPEC-model-bench.md` §7. This
+is the first page where W-M1's `meter-widget.js` is embedded live.
+
+STATUS: Done.
+
+BUILT (all under `web/`, plus 3 small Python-side files):
+- `web/index.template.html`: the page shell — title/subtitle with the
+  4 blue key terms, "Overall insights" card, leaderboard table, 4
+  headline charts (accuracy/cost/p50-latency/Brier — D19, disclosed
+  choice), a calibration scatter chart + 5 per-model reliability
+  tables, a "worst 10 intents" grid per model, the "try it live" box,
+  and the methodology list. `window.__RESULTS__` is inlined at build
+  time — the rendered page has no load-bearing network call for its
+  own leaderboard/chart numbers.
+- `web/model-bench-render.js`: pure, DOM-free rendering functions
+  (leaderboard sort, the 4 insight bullets, chart specs, reliability
+  series, worst-intents tables, methodology facts) plus `render()` to
+  mount them — DOM-free so every function is unit-testable headlessly.
+- `web/model-bench-live-box.js`: input validation (1,000-char max),
+  `callRunOne()` (POSTs to `/api/run-one`, exact-wording plain-English
+  errors including 429/Retry-After), and the 5-model answers table.
+- `web/api/model-bench-prompt.js`: a byte-for-byte JS port of
+  `src/modelbench/prompt.py`'s prompt-building and response-parsing —
+  shares the literal template text via `data/prompt.txt` (exported by
+  the new `scripts_export_prompt.py`), so Python and JS substitute
+  identically with no escaping rules to keep in sync. `prompt.py`
+  itself was refactored from `.format()`/escaped-brace style to
+  `__INTENT_LIST__`/`__TEXT__` string-replace tokens to make this
+  sharing possible; verified byte-identical in both languages by new
+  regression tests.
+- `web/api/run-one.js`: validates the message, builds the shared
+  prompt, calls all 5 Bedrock models in parallel
+  (`@aws-sdk/client-bedrock-runtime` — D18), logs a usage event and
+  increments the monthly counter per model (best-effort, in a
+  try/catch, so a logging failure never blocks the response — visitors
+  are never blocked for cost, rule 6), and returns each model's
+  intent/confidence/tokens/cost/latency. A model whose `data/prices.json`
+  entry is still a Gate-1 zero/placeholder degrades to a plain-English
+  "Model not yet configured (Gate 1 pending)." instead of calling
+  Bedrock or erroring — this is also what makes the full handler
+  testable for real today, before Gate 1.
+- `web/api/health.js`: results-file freshness (`results_as_of`), the
+  prices sheet's `as_of` date, and this month's live-box call count +
+  estimated cost, all combined for the methodology section's last two
+  bullets and the dev/ops health check.
+- `web/api/model-bench-counter.js`: the in-memory write-seam for usage
+  events + the monthly counter (same pattern as W-M1's `store.js`) —
+  the one thing W-M2 replaces with real Neon writes.
+- `scripts_build_web_page.py`: embeds a results JSON into the template
+  at `window.__RESULTS__`. Defaults to `results.json` and fails closed
+  with a clear message if it doesn't exist yet (points at
+  `--results results.sample.json` for local dev) — a production build
+  can never silently substitute sample data.
+- `results.sample.json` (+ `scripts_build_results_sample.py`): real
+  Banking77 label/intent data, but clearly-marked synthetic per-model
+  numbers (`"sample_disclosure"` field), used only for local
+  development/screenshots — never the default build target.
+- `web/dev-server.js`: added routes for `/api/run-one` and `/api/health`
+  plus a `readJsonBody()` helper (plain Node `http` doesn't auto-parse
+  POST bodies the way Vercel's runtime does), and switched the `/`
+  default route from the cost-ledger page to the model-bench page.
+- README.md: new "Model Bench page (task W-A3)" section documenting
+  every file above and how to preview it locally. CONTEXT.md: D18–D21
+  logged below plus updated Open items / Not yet built.
+- 1 commit on top of W-M1's 3. Repo re-synced to `~/Claude/model-bench`
+  on your Mac (same D14 procedure: built fresh in the Mac-VM's own
+  home, verified there — including a full `npm test` run — `cp -r`'d
+  into a new path after moving the old copy aside into
+  `_sync-cleanup-20260912/model-bench-pre-wa3-20260912-2200`, and
+  checksum-matched against the cloud workspace) and re-mirrored to
+  Drive HQ/giggit/model-bench (`model-bench-MANIFEST-2026-09-12-WA3.md`).
+
+TESTED:
+- `python3 -m ruff check .` clean. `python3 -m pytest -q`: 66/66 (up
+  from 60 — `prompt.py`'s refactor and `scripts_build_web_page.py` each
+  added regression tests).
+- Node side: 218 tests across 61 suites — 206 pass, 12 honestly-skipped
+  (stated reason: `TEST_DATABASE_URL` not set locally), 0 fail. Ran
+  identically on the cloud workspace and on your Mac (`npm ci` +
+  `npm test`, real Node v22 there).
+- Beyond unit tests, the built page was checked in THREE separate real
+  browsers, not just read as code: (1) headless Playwright in the cloud
+  sandbox — full-page screenshots before and after each fix; (2) your
+  actual Mac's Chrome, driven live against a dev server started for
+  real on your Mac's own Node (not the sandboxed VM — a plain VM-hosted
+  server isn't reachable from your real browser, so this specifically
+  used `osascript`/`do shell script` to launch `node dev-server.js` on
+  the real host and `mcp__claude-in-chrome__*` to drive your actual
+  Chrome to `http://localhost:3300/`) — confirmed the page, the
+  calibration-chart fix, the "Prices as of SAMPLE-NOT-REAL" fix, and a
+  full live-box round trip (all 5 models correctly answering "Model not
+  yet configured (Gate 1 pending)") all render correctly there, per
+  your stated preference for visible-browser verification on your own
+  machine, not headless-only. Both dev server processes (VM and real
+  Mac) were stopped afterward.
+- That visual pass caught 2 real bugs no unit test would have (D20,
+  both now fixed with regression coverage where testable, and reverified
+  by rebuilding + re-screenshotting): the `/api/health` fetch was
+  overwriting the results' own `prices_as_of` with the live current
+  value; and `.calibration-layout`'s CSS grid was stretching the small
+  calibration chart to match the much-taller reliability-tables column,
+  leaving a large empty gap.
+
+SPEC CHECK (§7 acceptance items relevant to W-A3):
+- Full test split, no sampling: `results.sample.json` carries real
+  Banking77 label/intent data (n=3,080 per model) even though its
+  per-model metrics are synthetic — no row count was ever reduced.
+- No fake/invented numbers presented as real: `results.sample.json`
+  is disclosed as sample data in its own JSON (`sample_disclosure`)
+  AND on the rendered page itself (methodology's "Prices as of
+  SAMPLE-NOT-REAL"); the default production build path
+  (`scripts_build_web_page.py` with no `--results` override) refuses
+  to run at all until a real `results.json` exists (Gate 1 + a real
+  run, not yet done — see Open items).
+- Visitors never blocked for cost: usage-event logging and the monthly
+  counter increment are both wrapped in try/catch in `run-one.js` and
+  never gate the response; the live box itself has no cost gate.
+- Secrets only via env: `AWS_REGION`/`AWS_ACCESS_KEY_ID`/
+  `AWS_SECRET_ACCESS_KEY` (already in `.env.example` from W-A2) are the
+  only ones `run-one.js` reads; nothing new needed adding.
+- Page style (rule 11): Lexend Light 300 body / 600 headings, no grey
+  text, `#1a56db` key terms, every "Overall insights" section opens
+  with a bullet card, every chart has a title/axis lines/tick
+  values/bold axis titles/no gridlines/value labels, text under charts
+  is bullets not paragraphs — verified visually in 3 browsers, not
+  just written.
+- Tests for every metric/parser/guard: yes — prompt building/parsing
+  (JS+Python parity), rendering/insight math, live-box validation and
+  error formatting, the run-one handler (config-check, cost calc,
+  per-model isolation, rate limiting, 400/200/429), the health handler,
+  and the counter seam.
+- Meter widget embedded live (§5/§1.3 from the cost-meter spec): yes —
+  `initMeterWidget()` + `mountLiveBox()` wired into
+  `index.template.html`'s module script; confirmed rendering (pill,
+  "$0.0000 · 0 calls") in all 3 browser checks above.
+
+OPEN — one thing needs your call, already resolved with a disclosed,
+reversible default rather than blocking the task:
+1. **D19 — exact question**: `SPEC-model-bench.md` §7 names accuracy,
+   cost, latency, and calibration as the 4 things this page compares,
+   but doesn't specify exactly 4 headline chart panels or which latency
+   percentile to chart. I built 4 charts — accuracy (fine), cost per
+   1,000 messages, **p50** latency, and Brier score — one per compared
+   dimension, matching the leaderboard's column order (p95 stays in
+   the leaderboard table only). Was a different 4th panel or p95
+   intended for the headline row?
+
+Also open, not spec conflicts, just disclosed choices:
+- D18: `web/package.json` now has one runtime dependency
+  (`@aws-sdk/client-bedrock-runtime`), mirroring D10's `boto3` — flag
+  if a different Bedrock-calling approach was wanted.
+- D21: the built `web/index.html` is gitignored (build output, not
+  source) rather than committed — regenerate it locally per README.md;
+  flag if you'd rather it were committed anyway (e.g. for a static
+  preview link) despite the sample-data-under-a-real-filename risk.
+- Real Bedrock calls from `/api/run-one` are exercised only against a
+  fake client in unit tests and are not yet reachable for real (Gate 1
+  pending) — the live-box round trip that WAS tested (today, correctly)
+  is the "not yet configured" path, not the real-model-call path.
+- W-M2 (a real Neon database) is still not built — unchanged, that
+  task's own stated scope. Gate 1 items (Bedrock ids/prices, AWS/Neon/
+  Vercel credentials) are unchanged — see "Open items" above.
+
+NEXT: W-B1 (per the fixed task order). Waiting for your "go" — per the
+BUILD INSTRUCTION, I have not started it.
