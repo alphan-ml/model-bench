@@ -143,6 +143,30 @@ python3 -m modelbench.cli pull-data
   "worst 10 intents" is a page-rendering choice (W-A3); the canonical JSON
   keeps the complete data so nothing has to be re-run to change how many
   are displayed later.
+- D14 — 2026-09-12 (infra, W-A2 close-out sync) — The Mac-VM shell's mounted
+  Claude folder (`~/Claude`, reached via the device bridge) does not support
+  the create-lockfile-then-rename-over-an-existing-file pattern that git
+  relies on internally for almost every write (`config`, `HEAD`, refs, the
+  index) — not just explicit `rm`, which was already known to be blocked.
+  The first attempt to sync this task's commits in place (`unzip -o` over
+  the existing repo) failed pervasively for the same underlying reason
+  (unlink of an existing file denied) and left the old copy in a mixed
+  state; a follow-up `git clone`/`git fetch` directly into the mounted
+  folder also failed partway (stray `config.lock`/`HEAD.lock` files from a
+  failed internal rename). Working pattern going forward, for every future
+  task's Mac re-sync: (1) `git clone`/build the fresh commit tree in the
+  Mac-VM's own home directory, outside `~/mnt/`, where normal filesystem
+  semantics apply and git's internal writes all succeed; (2) verify it
+  there (`git log`, `git status`, tip SHA); (3) `cp -r` the finished tree
+  into a *new* (non-pre-existing) path under `~/Claude/`, never overwriting
+  an existing directory — a plain file-create operation, not a git
+  operation, so it isn't subject to the same restriction; (4) verify again
+  with a combined `git ls-files | sort | xargs sha256sum | sha256sum`
+  compared against the same command run in the cloud workspace. Old/partial
+  copies are renamed aside (`mv`, which does succeed) into a holding folder
+  rather than deleted, since delete permission on that shell was requested
+  once and declined — see the W-A2 report's OPEN section for exactly what
+  got left where after this task's recovery.
 
 ## Open items (blocked on Leon / Gate 1)
 
@@ -327,6 +351,18 @@ OPEN:
   untested against a REAL endpoint (mocks only, per spec) — first real
   exercise happens at Gate 1/W-A4 if Bedrock isn't available for a given
   model key.
+- Mac re-sync hit real friction this task (see D14) — worth knowing about
+  even though it's resolved: `~/Claude/model-bench` on your Mac is now a
+  clean, verified copy (git tip `e54cfa7`, same combined sha256 of every
+  tracked file as the cloud workspace). Two things are left in `~/Claude/`
+  for you to deal with at your convenience, since I can't delete on that
+  shell: `model-bench-precloud-backup-20260912-1930/` (the OLD repo
+  directory, preserved intact per your "create a copy" instruction — safe
+  to inspect for anything you typed there since W-A1 that isn't in the new
+  copy, then trash it) and `_sync-cleanup-20260912/` (pure debris — three
+  failed partial-sync attempts, the old transfer zip, the git bundle file —
+  safe to trash without looking). Also folded the empty leftover
+  `_to_delete/` from the W-A1 transfer into that same cleanup folder.
 
 NEXT: per the task order, W-M1 (cost meter: `usage_events` schema, cost
 function + tests, meter widget + ledger page against a fixture — no
