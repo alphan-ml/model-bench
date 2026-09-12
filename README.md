@@ -9,7 +9,7 @@ This repository is the code and data behind the `/use-cases/model-bench` page
 on [giggitai.com](https://giggitai.com). See `CONTEXT.md` for the working
 notes (decisions made, open items, exact commands).
 
-## What's here as of this commit (task W-A1)
+## What's here (tasks W-A1 + W-A2)
 
 - The full Banking77 test split, pulled by direct file download (not
   hand-copied) — `data/golden.jsonl`, 3,080 rows.
@@ -22,14 +22,31 @@ notes (decisions made, open items, exact commands).
   confidence values.
 - A zeroed `data/prices.json` skeleton (real prices and Bedrock model ids are
   filled in at Gate 1, once Leon provides them).
+- The provider layer — `src/modelbench/providers/`: a Bedrock adapter
+  (Converse API), a direct-Anthropic fallback, an OpenAI-compatible-endpoint
+  fallback, and a fake adapter for local smoke tests. All four share one
+  retry helper (up to 5 attempts, exponential backoff with jitter, on
+  throttling/5xx only). Every network boundary is mocked in tests — no test
+  calls a real API.
+- The runner (`runner.py`): resumable and idempotent (re-running skips ids
+  already in the output file), a bounded worker pool, one JSON line written
+  per row.
+- Metrics (`metrics.py`): accuracy (fine/coarse), cost per 1,000 messages,
+  p50/p95 latency, Brier score, reliability bins, and per-intent accuracy —
+  all pure functions, all covered by a hand-computed 10-row toy dataset.
+- The report step (`report.py`): builds `results.json` from `outputs/*.jsonl`
+  + `data/golden.jsonl` + `data/prices.json`; refuses to run against
+  zero-priced models with a clear error.
+- `modelbench run --model KEY [--limit N]`, `modelbench report`, and
+  `modelbench smoke` are all implemented now (`smoke` needs no network or
+  secrets — it runs 20 real Banking77 rows through the fake adapter).
 - CI (GitHub Actions): `ruff check` + `pytest -q` on every push and PR. No
   network calls in CI — the pulled data is committed, so tests run against
   the files, not a live pull.
 
-Not yet built (later tasks): the provider layer (mock/Bedrock/direct
-adapters), the runner, metrics, the report step, the cost meter, and the web
-page. `modelbench run / report / smoke` are registered in the CLI but not yet
-implemented — see `src/modelbench/cli.py`.
+Not yet built (later tasks): the cost meter (W-M1/W-M2), the web page and its
+two functions (W-A3), and the full 5-model × 3,080-row run against real
+Bedrock (W-A4, needs Gate 1 credentials first).
 
 ## Run it yourself (60 seconds)
 
