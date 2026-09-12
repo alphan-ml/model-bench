@@ -616,7 +616,7 @@ NEXT: W-A3 (the model-bench use-case page + its two Vercel functions,
 SPEC-model-bench.md §7 — this is where `meter-widget.js` first gets
 embedded in a real page). Waiting for your "go".
 
-### TASK: W-A3 — 2026-09-12 18:07 ET (commit timestamp 21:55:26 UTC)
+### TASK: W-A3 — 2026-09-12 18:07 ET (commit timestamp 22:07:42 UTC)
 
 TASK: W-A3 — Model Bench use-case page (`web/index.html`, built from a
 new `web/index.template.html`) and its two Vercel functions: `POST
