@@ -423,3 +423,128 @@ OPEN:
 NEXT: per the task order, W-M1 (cost meter: `usage_events` schema, cost
 function + tests, meter widget + ledger page against a fixture — no
 secrets needed yet) comes before W-A3. Waiting for your "go".
+
+### TASK: W-M1 — 2026-09-12 20:40 ET
+
+TASK: W-M1 — Cost Meter shared module: `usage_events` schema, cost
+function, the 3 read-only API endpoints, the client-side widget, and the
+standalone `/use-cases/cost-ledger` page — all against fixture data, no
+secrets, no live database (per `SPEC-cost-meter-and-angi-reuse.md` §6).
+
+STATUS: Done.
+
+BUILT (all under `web/`, plain Node, zero runtime dependencies):
+- `api/meter/cost.js`: `computeCostUsd`/`roundCostUsd`, kept formula-identical
+  to `modelbench.metrics.cost_per_1k` (W-A2).
+- `api/meter/schema.sql`: the `usage_events` table (§1.1's fields exactly),
+  3 indexes (`session_id`, `ts`, `use_case+ts`), CHECK constraints on
+  `use_case` and `step` — `step`'s constraint is the D15 union (see OPEN).
+- `api/meter/store.js`: fixture-backed `getAllEvents()`/`getEventsForSession()`
+  — the one seam W-M2 swaps for a real Neon query.
+- `api/meter/rate-limit.js`: per-IP in-memory limiter, 60/10min — abuse
+  control only, visitors are never blocked for cost (rule 6).
+- `api/meter/session.js`, `ledger.js`, `health.js`: the 3 endpoints from
+  §1.2 — `GET /api/meter/session?id=`, `GET /api/meter/ledger?window=&group=`,
+  `GET /api/meter/health`.
+- `meter-widget.js`: the bottom-right pill + drawer from §1.3 — live
+  session total (4 decimals) + call count on the pill; itemized table
+  (6-decimal cost, since a single call can be $0.00004 and 4 decimals
+  would print "$0.0000" for a real cost) + "Copy as CSV" in the drawer.
+  Session id is in-memory only, per spec ("no cookies... reload starts a
+  new session").
+- `charts.js`: a small hand-built inline-SVG bar chart (title, axis lines,
+  tick values, bold axis titles, no gridlines, value labels on/above each
+  bar) — no charting library, so it can match page-style rule 11 exactly.
+- `cost-ledger.js` + `cost-ledger.html`: the standalone page — "Overall
+  insights" card (month-to-date cost, cheapest/dearest step per answer,
+  cost share by use case), 4 charts (cost per day, by use case, by model,
+  cost-per-answer by step), a cost-by-day table, and the plain-English
+  explainer sentence. Every number is fetched live from `/api/meter/health`
+  and `/api/meter/ledger` — nothing hard-coded.
+- `dev-server.js` + `dev-widget-preview.html`: local-only (never deployed)
+  tooling so both the ledger page and the widget could be checked in a
+  real browser against the fixtures, not just read as code.
+- `.github/workflows/ci.yml`: new `web-test` job — `postgres:16` service
+  container + `node --test`, separate from the Python job so neither
+  blocks the other.
+- `.env.example`: documents `TEST_DATABASE_URL` (schema-test-only, not a
+  production secret) and `DATABASE_URL` (unused placeholder for W-M2).
+- 3 commits on top of W-A2's 8. Repo re-synced to `~/Claude/model-bench`
+  on your Mac (same D14 procedure: built fresh in the Mac-VM's own home,
+  verified there, `cp -r`'d into a new path, checksum-matched against the
+  cloud workspace, then the old copy renamed aside — never deleted — into
+  `_sync-cleanup-20260912/model-bench-pre-wm1-20260912-2035`) and
+  re-mirrored to Drive HQ/giggit/model-bench.
+
+TESTED: `python3 -m ruff check .` clean, `python3 -m pytest -q` still
+60/60 (Python side untouched by this task). Node side: 109 tests across
+33 suites — 97 pass + 12 honestly-skipped (with a stated reason, not
+silently green) when `TEST_DATABASE_URL` isn't set; all 109 pass when it
+is. Ran both ways, on both the cloud workspace and your Mac. The schema
+tests (`tests/schema.test.js`) run `schema.sql`'s real DDL against an
+actual PostgreSQL 16 database — not a text/regex check — and confirm the
+constraints actually reject bad rows: an unrecognized `use_case`, an
+unrecognized `step`, negative `cost_usd`/`input_tokens`/`output_tokens`/
+`latency_ms`, and a missing `session_id`; also confirms all 8 D15-union
+`step` values are accepted and a 9th, made-up one is rejected. CI now runs
+this for real too (a `postgres:16` service container), not just locally.
+
+Beyond unit tests: both the widget and the ledger page were opened in an
+actual headless browser (Playwright, against `dev-server.js` serving the
+real fixture-backed handlers) and screenshotted for a real visual check —
+not just "the code looks right." That caught 3 real bugs no unit test
+would have (all now fixed, with regression tests, and logged as part of
+D16): a short bar's value label could slide onto the x-axis line and
+collide with the category label below it; a bar too short to contain a
+legible white label rendered it straddling the bar and the white page
+background (unreadable where it crossed onto white); and the day chart's
+date format collapsed same-month days to one indistinguishable label.
+
+SPEC CHECK (§5 acceptance additions relevant to W-M1):
+- "A visitor... can click the meter and see an itemized cost" (item 1):
+  the widget code and its tests are done; not yet wired into a live page,
+  since no use-case page exists yet to embed it in (W-A3 is next).
+- "`/use-cases/cost-ledger` is live and reads only from the API" (item 2):
+  the page itself is done and reads only from `/api/meter/*` — "live"
+  (deployed on Vercel) is W-M2/deploy, out of this task's scope.
+- Page style (rule 11): Lexend Light 300 body / 600 headings, no grey
+  text, `#1a56db` for key terms and cost values, red (`#c81e1e`) only for
+  the drawer's error rows, every chart has a title/axis lines/tick
+  values/bold axis titles/no gridlines/labels on or in bars — verified
+  visually, not just written.
+- No fake/illustrative numbers: every number on the ledger page and in
+  the widget comes from `/api/meter/*`, fed by the committed fixture file
+  — nothing is hard-coded in `cost-ledger.js` or `meter-widget.js`.
+- Secrets only via env: none needed for this task; `TEST_DATABASE_URL` is
+  test-only (documented in `.env.example`, never committed as a real
+  value) and no `.env` file exists in the repo.
+- Tests for every metric/parser/guard: yes — cost math, rate limiting,
+  all 3 endpoint handlers, the fixture store, both chart-data and
+  chart-SVG logic, the CSV/formatting helpers, and the schema's real
+  constraints.
+
+OPEN — two things need your call, both already resolved with a disclosed,
+reversible default rather than blocking the task:
+1. **D15 — exact question**: `SPEC-cost-meter-and-angi-reuse.md` §1.1 says
+   `usage_events.step` is `'text-to-intent' | 'text-to-sql' | 'text-to-plan'
+   | 'compose' | 'verify' | 'live-box'`; §3 says to use `text-to-intent,
+   text-to-plan, text-to-sql, text-to-forecast-call, text-to-answer`. I
+   built the CHECK constraint as the union of both (8 values) rather than
+   picking one. Was one of these meant to replace the other, or is the
+   union correct?
+2. **D16 — exact question**: §1.3 says chart dates should read "Mon YY".
+   The day-grouped chart/table use "Mon D" instead (e.g. "Sep 12"),
+   because "Mon YY" makes every day in the same month print the identical
+   label. Was "Mon YY" meant for a different, coarser chart, or should
+   the daily chart use a different format than what I chose?
+
+Also open: W-M2 (wiring a real Neon database) is not built — that's this
+task's stated scope, not a miss. The widget isn't embedded in any live
+page yet since none exist (W-A3 is the model-bench page itself). Gate 1
+items (Bedrock ids/prices, AWS/Neon/Vercel credentials) are unchanged —
+see "Open items" above.
+
+NEXT: W-A3 (the model-bench use-case page + its two Vercel functions,
+`web/index.html` + `web/api/run-one.js` + `web/api/health.js`, per
+SPEC-model-bench.md §7 — this is where `meter-widget.js` first gets
+embedded in a real page). Waiting for your "go".
