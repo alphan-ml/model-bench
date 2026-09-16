@@ -201,7 +201,7 @@ export function validateRunOneInput(req) {
 
 /** @param {import('node:http').IncomingMessage} req
  *  @param {import('node:http').ServerResponse & {status: Function, json: Function}} res */
-export default async function handler(req, res) {
+export default async function handler(req, res, { getClient } = {}) {
   const { allowed, retryAfterSeconds } = runOneRateLimiter.check(clientIpFrom(req));
   if (!allowed) {
     res.setHeader('Retry-After', String(retryAfterSeconds));
@@ -223,7 +223,7 @@ export default async function handler(req, res) {
   const prices = readPrices();
 
   const answers = await Promise.all(
-    prices.models.map((priceEntry) => callOneModel(priceEntry, prompt, intents))
+    prices.models.map((priceEntry) => callOneModel(priceEntry, prompt, intents, getClient ? { getClient } : undefined))
   );
 
   // Best-effort metering only, from here down: a bug in either call must

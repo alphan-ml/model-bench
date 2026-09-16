@@ -20,8 +20,12 @@ notes (decisions made, open items, exact commands).
   `src/modelbench/prompt.py` — with tests covering valid JSON, fenced JSON,
   trailing text, an out-of-set label, an empty response, and out-of-range
   confidence values.
-- A zeroed `data/prices.json` skeleton (real prices and Bedrock model ids are
-  filled in at Gate 1, once Leon provides them).
+- `data/prices.json`: real, invocable Bedrock model ids and AWS-sourced
+  prices for nova/llama/mistral (verified live against AWS account
+  291723764681, us-east-1, 2026-09-16 -- see CONTEXT.md's W-A4 report);
+  claude-haiku/claude-sonnet carry real ids/prices too but are currently
+  blocked at the AWS account level (disclosed in their own `status` field,
+  not a code issue).
 - The provider layer — `src/modelbench/providers/`: a Bedrock adapter
   (Converse API), a direct-Anthropic fallback, an OpenAI-compatible-endpoint
   fallback, and a fake adapter for local smoke tests. All four share one
@@ -44,10 +48,13 @@ notes (decisions made, open items, exact commands).
   network calls in CI — the pulled data is committed, so tests run against
   the files, not a live pull.
 
-Not yet built (later tasks): the model-bench use-case web page and its two
-functions (W-A3), and the full 5-model × 3,080-row run against real Bedrock
-(W-A4, needs Gate 1 credentials first). The cost meter's live-Neon wiring
-(W-M2) is also not yet built — see below for what the cost meter is today.
+Built since (W-A3, W-A4): the model-bench use-case web page and its two
+functions; the full 3-of-5-model × 3,080-row run against real Bedrock
+(nova/llama/mistral -- claude-haiku/claude-sonnet are blocked at the AWS
+account level, see CONTEXT.md). Not yet built: the cost meter's live-Neon
+wiring (W-M2) — see below for what the cost meter is today; Azure AI
+Foundry provisioning and the section-6.2 Bedrock-vs-Foundry comparison;
+any Vercel deploy.
 
 ## Cost Meter (task W-M1)
 
