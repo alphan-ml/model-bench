@@ -1,0 +1,601 @@
+<title>Gate 1 Setup Runbook</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #F7F6F2;
+    --surface: #FFFFFF;
+    --surface-2: #F0EEE7;
+    --ink: #14171C;
+    --ink-soft: #40454E;
+    --line: #DAD4C6;
+    --accent: #2A4B8D;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #E7EDF9;
+    --warn: #9A5B12;
+    --warn-soft: #FBEEDD;
+    --warn-line: #E3B27C;
+    --good: #1B7A43;
+    --good-soft: #E7F4EC;
+    --code-bg: #12151B;
+    --code-ink: #E9EDF4;
+    --code-accent: #8FB4FF;
+    --shadow: 0 1px 2px rgba(20,23,28,0.06), 0 8px 24px rgba(20,23,28,0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171C;
+      --surface: #1B1F27;
+      --surface-2: #20242D;
+      --ink: #F2F1ED;
+      --ink-soft: #C6C2B6;
+      --line: #333947;
+      --accent: #7FA6FF;
+      --accent-ink: #0B1220;
+      --accent-soft: #1E2A44;
+      --warn: #F0B429;
+      --warn-soft: #35291a;
+      --warn-line: #8A6323;
+      --good: #52C98A;
+      --good-soft: #16301F;
+      --code-bg: #0B0D11;
+      --code-ink: #E9EDF4;
+      --code-accent: #8FB4FF;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171C;
+    --surface: #1B1F27;
+    --surface-2: #20242D;
+    --ink: #F2F1ED;
+    --ink-soft: #C6C2B6;
+    --line: #333947;
+    --accent: #7FA6FF;
+    --accent-ink: #0B1220;
+    --accent-soft: #1E2A44;
+    --warn: #F0B429;
+    --warn-soft: #35291a;
+    --warn-line: #8A6323;
+    --good: #52C98A;
+    --good-soft: #16301F;
+    --code-bg: #0B0D11;
+    --code-ink: #E9EDF4;
+    --code-accent: #8FB4FF;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Lexend', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 300;
+    line-height: 1.55;
+    padding: 0 16px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding-block: 28px 64px; }
+
+  h1, h2, h3 { font-family: 'Lexend', ui-sans-serif, system-ui, sans-serif; font-weight: 600; text-wrap: balance; color: var(--ink); }
+  code, .mono, .kbd { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace; }
+
+  /* ---------- header ---------- */
+  .doc-head {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 12px 24px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 18px;
+    margin-bottom: 22px;
+  }
+  .doc-head .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  h1.title { font-size: clamp(28px, 4vw, 40px); margin: 4px 0 0; line-height: 1.05; }
+  .doc-head .meta { text-align: right; font-size: 13px; color: var(--ink-soft); }
+  .doc-head .meta strong { color: var(--ink); }
+
+  /* ---------- summary strip ---------- */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .summary-cell { background: var(--surface); padding: 14px 16px; }
+  .summary-cell .num { font-family: 'Lexend', sans-serif; font-size: 26px; font-weight: 700; color: var(--accent); }
+  .summary-cell .lbl { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  @media (max-width: 620px) { .summary-grid { grid-template-columns: 1fr 1fr; } .summary-cell:last-child { grid-column: 1 / -1; } }
+
+  /* ---------- rule callout (secrets warning) ---------- */
+  .rule {
+    display: flex; gap: 12px;
+    background: var(--warn-soft);
+    border: 1px solid var(--warn-line);
+    border-left: 5px solid var(--warn);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin: 0 0 28px;
+  }
+  .rule .rule-mark {
+    font-family: 'Lexend', sans-serif; font-weight: 700; font-size: 13px;
+    color: var(--warn); letter-spacing: 0.06em; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .rule p { margin: 0; }
+  .rule ul { margin: 8px 0 0; padding-left: 20px; }
+  .rule strong { color: var(--ink); }
+
+  /* ---------- scope note ---------- */
+  .scope {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 620px) { .scope { grid-template-columns: 1fr; } }
+  .scope-box { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--surface); }
+  .scope-box h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: 0.01em; }
+  .scope-box.yes h3 { color: var(--good); }
+  .scope-box.no h3 { color: var(--ink-soft); }
+  .scope-box ul { margin: 0; padding-left: 18px; font-size: 14.5px; }
+  .scope-box li { margin-bottom: 4px; }
+
+  /* ---------- step sections ---------- */
+  .step {
+    position: relative;
+    margin: 0 0 36px;
+    padding: 24px 24px 22px 68px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .step .step-num {
+    position: absolute; left: 20px; top: 22px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Lexend', sans-serif; font-weight: 700; font-size: 17px;
+  }
+  .step h2 { font-size: 22px; margin: 0 0 2px; }
+  .step .step-sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 16px; }
+  .step .step-sub .clock { font-family: 'IBM Plex Mono', monospace; color: var(--accent); font-weight: 600; }
+
+  .step ol { margin: 0 0 14px; padding-left: 22px; }
+  .step ol li { margin-bottom: 9px; }
+  .step ol li::marker { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--accent); }
+  .step ul.plain { margin: 8px 0 14px; padding-left: 20px; }
+  .step ul.plain li { margin-bottom: 6px; }
+
+  .field { padding: 1px 7px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); font-size: 0.94em; }
+  .path > span { padding: 1px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; font-weight: 600; }
+  .path .arrow { color: var(--ink-soft); padding: 0 2px; font-family: inherit; }
+
+  pre {
+    background: var(--code-bg); color: var(--code-ink);
+    border-radius: 8px; padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px; line-height: 1.6;
+    margin: 10px 0 14px;
+  }
+  pre .c1 { color: #7C8798; }
+  code.inline { background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 0.9em; }
+
+  .callout {
+    display: flex; gap: 10px;
+    border-radius: 8px; padding: 12px 14px; margin: 12px 0 16px;
+    font-size: 14px;
+    border: 1px solid var(--line);
+  }
+  .callout.warn { background: var(--warn-soft); border-color: var(--warn-line); border-left: 4px solid var(--warn); }
+  .callout.info { background: var(--accent-soft); border-left: 4px solid var(--accent); border-color: var(--accent); }
+  .callout .icon { font-family: 'IBM Plex Mono', monospace; font-weight: 700; }
+  .callout.warn .icon { color: var(--warn); }
+  .callout.info .icon { color: var(--accent); }
+  .callout p { margin: 0; }
+
+  .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px 0 16px; }
+  @media (max-width: 620px) { .options { grid-template-columns: 1fr; } }
+  .option { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); }
+  .option.rec { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .option .amt { font-family: 'Lexend', sans-serif; font-weight: 700; font-size: 20px; color: var(--ink); }
+  .option .tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 600; }
+  .option p { margin: 4px 0 0; font-size: 13px; color: var(--ink-soft); }
+
+  .dod {
+    margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line);
+  }
+  .dod .dod-lbl { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--good); font-weight: 600; margin-bottom: 6px; }
+  .dod ul { margin: 0; padding-left: 0; list-style: none; }
+  .dod li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; margin-bottom: 5px; }
+  .dod li .box { flex: none; width: 15px; height: 15px; margin-top: 2px; border: 1.5px solid var(--ink-soft); border-radius: 3px; }
+
+  /* ---------- table ---------- */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin: 10px 0 18px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; background: var(--surface); }
+  thead th {
+    text-align: left; background: var(--surface-2); color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: 'IBM Plex Mono', monospace; }
+  td .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+  /* ---------- final checklist ---------- */
+  .final {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 22px 24px; margin-bottom: 28px; box-shadow: var(--shadow);
+  }
+  .final h2 { margin-top: 0; }
+  .final-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 620px) { .final-grid { grid-template-columns: 1fr; } }
+  .final-grid h3 { font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .final-grid .yes h3 { color: var(--good); }
+  .final-grid .no h3 { color: var(--warn); }
+  .final-grid ul { margin: 0; padding-left: 0; list-style: none; }
+  .final-grid li { display: flex; gap: 8px; font-size: 14px; margin-bottom: 7px; }
+  .final-grid .yes li .box { flex: none; width: 15px; height: 15px; margin-top: 2px; border: 1.5px solid var(--good); border-radius: 3px; }
+  .final-grid .no li::before { content: "✕"; color: var(--warn); font-weight: 700; flex: none; }
+
+  footer { font-size: 12.5px; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 16px; margin-top: 8px; }
+  footer p { margin: 4px 0; }
+</style>
+
+<div class="wrap">
+
+  <div class="doc-head">
+    <div>
+      <div class="eyebrow">Giggit AI &middot; Model Bench + AREA</div>
+      <h1 class="title">Gate 1 Setup Runbook</h1>
+    </div>
+    <div class="meta">
+      Written 2026&#8209;09&#8209;13 &middot; for <strong>Leon</strong> to run himself<br>
+      Claude cannot do these steps &mdash; see the rule below
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-cell"><div class="num">~35&#8209;45 min</div><div class="lbl">total, mostly waiting</div></div>
+    <div class="summary-cell"><div class="num">3</div><div class="lbl">accounts: AWS, Vercel, Neon</div></div>
+    <div class="summary-cell"><div class="num">0</div><div class="lbl">secrets typed into this chat</div></div>
+  </div>
+
+  <div class="rule">
+    <div class="rule-mark">Rule&nbsp;1</div>
+    <div>
+      <p><strong>Never paste a secret value into this chat. Not once, not to "confirm" it.</strong> A secret is any of these:</p>
+      <ul>
+        <li>The AWS <strong>Secret Access Key</strong> (the long string, not the shorter Access Key ID)</li>
+        <li>The Neon <strong>connection string</strong> (it starts with <code class="inline">postgresql://</code> and has a password inside it)</li>
+        <li>Any Vercel <strong>token</strong></li>
+      </ul>
+      <p style="margin-top:8px;">If you want to tell Claude a step is done, say <em>"key created"</em> or <em>"bucket done"</em> &mdash; never the value itself. Save real values in a password manager or an encrypted note on your own machine.</p>
+    </div>
+  </div>
+
+  <div class="scope">
+    <div class="scope-box yes">
+      <h3>What today covers</h3>
+      <ul>
+        <li>Ask AWS for permission to use 5 models</li>
+        <li>Make one storage bucket</li>
+        <li>Make one narrow AWS key, just for this project</li>
+        <li>Set a spending alert</li>
+        <li>Check your Vercel login</li>
+        <li>Make your Neon account (you're doing this now)</li>
+      </ul>
+    </div>
+    <div class="scope-box no">
+      <h3>What today does not cover</h3>
+      <ul>
+        <li>Putting any value into Vercel or into the code</li>
+        <li><code class="inline">vercel link</code>, <code class="inline">vercel env add</code>, or any deploy command</li>
+        <li>Filling in real model prices in <code class="inline">prices.json</code></li>
+      </ul>
+      <p style="margin:8px 0 0; font-size:13px;">Those come later, in the next task ("Sync/deploy tooling") and Gate&nbsp;1 itself &mdash; with exact commands, typed by you, never through this chat.</p>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="step-num">1</div>
+    <h2>AWS &mdash; ask for model access</h2>
+    <p class="step-sub">Do this first. <span class="clock">Approval takes a few minutes in the background</span> &mdash; start it, then do steps 2&ndash;4 while it processes.</p>
+
+    <ol>
+      <li>Sign in to the AWS Console. Top&#8209;right region picker: set it to <strong>US East (N. Virginia)</strong>. This is region <code class="inline">us-east-1</code>. Use this same region for every AWS step below.</li>
+      <li>Go to the <strong>Bedrock</strong> console.</li>
+      <li>Left menu path: <span class="path"><span>Bedrock configurations</span><span class="arrow">&rarr;</span><span>Model access</span></span></li>
+      <li>Click <strong>Modify model access</strong>.</li>
+      <li>Check the box for every model under these four provider names: <strong>Anthropic</strong>, <strong>Amazon</strong>, <strong>Meta</strong>, <strong>Mistral AI</strong>. Select all of them, not just one variant each.</li>
+    </ol>
+
+    <div class="callout info">
+      <span class="icon">i</span>
+      <p><strong>Why "all of them," not one exact model?</strong> The project needs 5 specific models (a Claude Haiku, a Claude Sonnet, one Nova, one Llama, one Mistral) but the exact version IDs haven't been picked yet &mdash; that happens in a later step, once real prices get written down. Requesting access is free; you're only billed when a model is actually called. Checking every box now avoids a second trip back to this screen.</p>
+    </div>
+
+    <ol start="6">
+      <li>Click <strong>Next</strong>, then <strong>Submit</strong>.</li>
+      <li><strong>Anthropic only:</strong> a "Submit use case details" form appears. This is the one provider that reviews the answer before granting access. Paste this into the description field:</li>
+    </ol>
+
+    <pre><span class="c1"># paste this exact text into Anthropic's use-case form</span>
+Benchmarking model accuracy, cost, and latency across providers
+for a personal AI infrastructure research project (Giggit AI).
+Non-production evaluation and research use.</pre>
+
+    <ol start="8">
+      <li>Submit that form. The other three providers (Amazon, Meta, Mistral AI) just need their license terms accepted &mdash; no form.</li>
+    </ol>
+
+    <div class="dod">
+      <div class="dod-lbl">Done when</div>
+      <ul>
+        <li><span class="box"></span> The Model access page shows every model as "Access granted" or "In progress" for all 4 providers. "In progress" is fine &mdash; it finishes in the background.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="step-num">2</div>
+    <h2>AWS &mdash; create the storage bucket</h2>
+    <p class="step-sub"><span class="clock">~2 min</span> &middot; this holds the project's raw data files, nothing secret</p>
+
+    <ol>
+      <li>Go to the <strong>S3</strong> console.</li>
+      <li>Path: <span class="path"><span>General purpose buckets</span><span class="arrow">&rarr;</span><span>Create bucket</span></span></li>
+      <li>Bucket name &mdash; type exactly:</li>
+    </ol>
+    <pre>giggit-area-raw-payments</pre>
+    <div class="callout warn">
+      <span class="icon">!</span>
+      <p>Bucket names are shared across <em>all</em> AWS customers worldwide, so this exact name might already be taken by someone else. If AWS says it's unavailable, add your initials and a number, e.g. <code class="inline">giggit-area-raw-payments-la26</code>. The name itself isn't secret &mdash; just note whichever one you end up with.</p>
+    </div>
+    <ol start="4">
+      <li>Region: confirm it says <strong>US East (N. Virginia)</strong> / <code class="inline">us-east-1</code>.</li>
+      <li>Object Ownership: leave the default, <strong>Bucket owner enforced</strong>.</li>
+      <li><strong>Block Public Access settings</strong>: leave every box checked (the default). Do not uncheck these.</li>
+      <li>Bucket Versioning: leave <strong>Disable</strong> (default) &mdash; not needed here.</li>
+      <li>Default encryption: leave the default (<strong>SSE&#8209;S3</strong>).</li>
+      <li>Click <strong>Create bucket</strong>.</li>
+    </ol>
+
+    <div class="dod">
+      <div class="dod-lbl">Done when</div>
+      <ul>
+        <li><span class="box"></span> The bucket exists and shows in your bucket list. Note down its exact name &mdash; you'll need it in Step 3, and again later.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="step-num">3</div>
+    <h2>AWS &mdash; create one narrow IAM user</h2>
+    <p class="step-sub"><span class="clock">~6 min</span> &middot; this is the credential the deployed app will use &mdash; it can only call these 5 models and touch this one bucket, nothing else</p>
+
+    <ol>
+      <li>Go to the <strong>IAM</strong> console.</li>
+      <li>Path: <span class="path"><span>Users</span><span class="arrow">&rarr;</span><span>Create user</span></span></li>
+      <li>User name: <code class="inline">giggit-bedrock-app</code> (just a label, not secret).</li>
+      <li>Leave <strong>"Provide user access to the AWS Management Console"</strong> unchecked. This user is for code, not for logging into AWS as a person.</li>
+      <li>Click <strong>Next</strong>. Under permissions options, choose <strong>Attach policies directly</strong>.</li>
+      <li>Click <strong>Create policy</strong> (opens a new tab).</li>
+      <li>Switch to the <strong>JSON</strong> tab in the policy editor and replace everything with this &mdash; first swap in your real bucket name from Step 2 wherever you see <code class="inline">YOUR-BUCKET-NAME</code> (two places):</li>
+    </ol>
+
+    <pre>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BedrockInvokeGiggitModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-*",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-*",
+        "arn:aws:bedrock:us-east-1::foundation-model/meta.llama*",
+        "arn:aws:bedrock:us-east-1::foundation-model/mistral.*"
+      ]
+    },
+    {
+      "Sid": "S3RawDataBucketOnly",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::YOUR-BUCKET-NAME",
+        "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+      ]
+    }
+  ]
+}</pre>
+
+    <div class="callout info">
+      <span class="icon">i</span>
+      <p><strong>Why this exact shape, for the audit trail:</strong> the policy names the 4 model providers by prefix instead of one exact model ID each, because the exact 5 model versions aren't chosen yet (Step 1's note). It's still far narrower than AWS's own default suggestion &mdash; it cannot touch any other AWS service, any other bucket, or any model outside these 4 providers. This choice is logged as decision D17 in AREA's CONTEXT.md and D22 in Model Bench's.</p>
+    </div>
+
+    <ol start="8">
+      <li>Click <strong>Next</strong>. Name the policy <code class="inline">giggit-bedrock-s3-policy</code>. Click <strong>Create policy</strong>.</li>
+      <li>Go back to the <strong>Create user</strong> tab. Refresh the policy list, search <code class="inline">giggit-bedrock-s3-policy</code>, check it.</li>
+      <li>Click <strong>Next</strong>, then <strong>Create user</strong>.</li>
+      <li>Click into the new user &rarr; <strong>Security credentials</strong> tab &rarr; <strong>Access keys</strong> section &rarr; <strong>Create access key</strong>.</li>
+      <li>On "Access key best practices &amp; alternatives," choose <strong>Other</strong>, then <strong>Next</strong>.</li>
+      <li>(Optional) add a description tag, e.g. <code class="inline">giggit project key</code>. Click <strong>Create access key</strong>.</li>
+      <li>Click <strong>Show</strong> to reveal the secret key, then <strong>Download .csv file</strong>.</li>
+    </ol>
+
+    <div class="callout warn">
+      <span class="icon">!</span>
+      <p>AWS shows the Secret Access Key <strong>exactly once</strong>. If you don't download it now, you'll have to delete this key and make a new one. Save the .csv somewhere private &mdash; a password manager, or an encrypted note on your own machine. Not in this chat, not in email, not in either repo.</p>
+    </div>
+
+    <div class="dod">
+      <div class="dod-lbl">Done when</div>
+      <ul>
+        <li><span class="box"></span> One IAM user exists with the policy above attached.</li>
+        <li><span class="box"></span> One .csv file is downloaded and saved somewhere private, containing an Access Key ID and a Secret Access Key.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="step-num">4</div>
+    <h2>AWS &mdash; set a spending alert</h2>
+    <p class="step-sub"><span class="clock">~3 min</span> &middot; an email tripwire, not a hard cap &mdash; AWS Budgets can't stop spending by itself, it only warns you</p>
+
+    <ol>
+      <li>Go to the <strong>Billing and Cost Management</strong> console.</li>
+      <li>Path: <span class="path"><span>Budgets</span><span class="arrow">&rarr;</span><span>Create budget</span></span></li>
+      <li>Choose <strong>Customize (advanced)</strong> &rarr; <strong>Cost budget</strong> &rarr; <strong>Next</strong>.</li>
+      <li>Budget name: <code class="inline">giggit-monthly-alert</code>.</li>
+      <li>Period: <strong>Monthly</strong>. Budget renewal type: <strong>Recurring budget</strong>.</li>
+      <li>Budgeting method: <strong>Fixed</strong>. Enter your monthly amount &mdash; pick one below.</li>
+    </ol>
+
+    <div class="options">
+      <div class="option"><div class="tag">Tight</div><div class="amt">$10</div><p>Trips fast. May fire during one heavy afternoon of testing all 5 models.</p></div>
+      <div class="option rec"><div class="tag">Recommended</div><div class="amt">$25</div><p>Room for several days of benchmarking across models before it warns you.</p></div>
+      <div class="option"><div class="tag">Loose</div><div class="amt">$50</div><p>For a longer stretch of testing without re-checking the alert.</p></div>
+    </div>
+
+    <ol start="7">
+      <li>Click <strong>Next</strong>. Click <strong>Add an alert threshold</strong>.</li>
+      <li>Threshold: <strong>80%</strong> of budget, type <strong>Actual</strong>.</li>
+      <li>Email recipients: your own email address.</li>
+      <li>Click <strong>Next</strong> twice (skip "budget actions"), review, click <strong>Create budget</strong>.</li>
+    </ol>
+
+    <div class="dod">
+      <div class="dod-lbl">Done when</div>
+      <ul>
+        <li><span class="box"></span> One budget exists with one email alert attached to your own address.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="step-num">5</div>
+    <h2>Vercel &mdash; confirm your login</h2>
+    <p class="step-sub"><span class="clock">~2 min</span> &middot; light touch on purpose &mdash; no project exists to connect yet</p>
+
+    <ol>
+      <li>Go to <strong>vercel.com</strong> and sign in (or sign up &mdash; email, GitHub, or GitLab all work).</li>
+      <li>On your <strong>real Mac Terminal</strong> &mdash; not any sandbox or browsing agent &mdash; run:</li>
+    </ol>
+    <pre>vercel whoami</pre>
+    <ul class="plain">
+      <li>Prints your account name &rarr; you're already logged in. Nothing else to do.</li>
+      <li>Says you're logged out &rarr; run <code class="inline">vercel login</code> and follow the prompt (it opens a browser tab or emails you a link to confirm).</li>
+    </ul>
+
+    <div class="callout info">
+      <span class="icon">i</span>
+      <p>Model Bench's own notes (CONTEXT.md, decision D4) record that the Vercel CLI already lives on your real Mac and was logged in there before. This step just confirms that's still true.</p>
+    </div>
+
+    <div class="callout warn">
+      <span class="icon">!</span>
+      <p>Do not run <code class="inline">vercel link</code>, <code class="inline">vercel env add</code>, or any deploy command yet. There's no project to link to &mdash; that's built in the next task.</p>
+    </div>
+
+    <div class="dod">
+      <div class="dod-lbl">Done when</div>
+      <ul>
+        <li><span class="box"></span> <code class="inline">vercel whoami</code> prints your account name in your real Terminal.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step">
+    <div class="step-num">6</div>
+    <h2>Neon &mdash; note for the record</h2>
+    <p class="step-sub"><span class="clock">you're already doing this</span> &middot; no instructions needed, just what to save</p>
+
+    <ul class="plain">
+      <li>Create the account and project the way you're already doing.</li>
+      <li>When it gives you a connection string (starts with <code class="inline">postgresql://</code>), that string is a secret &mdash; it has a password inside it. Save it the same private way as the AWS keys in Step 3.</li>
+      <li>Both repos will eventually want two of these: one scratch/test database, one real one. Whether that's one Neon project with two databases, or two separate projects, is a small open decision for the actual wiring step &mdash; no need to decide that today.</li>
+    </ul>
+
+    <div class="dod">
+      <div class="dod-lbl">Done when</div>
+      <ul>
+        <li><span class="box"></span> A Neon project exists and its connection string is saved somewhere private.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- REFERENCE TABLE -->
+  <h2 style="margin-bottom:4px;">Where each value goes later</h2>
+  <p style="color:var(--ink-soft); font-size:14px; margin-top:0;">For the audit trail only &mdash; nothing here happens today. These are the exact variable names already written into both repos' <code class="inline">.env.example</code> files.</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Value from today</th><th class="mono">Env var name</th><th>Used by</th><th>Note</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>AWS Access Key ID (Step 3)</td><td class="mono">AWS_ACCESS_KEY_ID</td><td><span class="tag">area</span> <span class="tag">model-bench</span></td><td>Same value, same variable name in both repos</td></tr>
+        <tr><td>AWS Secret Access Key (Step 3)</td><td class="mono">AWS_SECRET_ACCESS_KEY</td><td><span class="tag">area</span> <span class="tag">model-bench</span></td><td>Secret &mdash; never in chat</td></tr>
+        <tr><td>AWS region</td><td class="mono">AWS_REGION</td><td><span class="tag">area</span> <span class="tag">model-bench</span></td><td>Value is <code class="inline">us-east-1</code>, not secret</td></tr>
+        <tr><td>S3 bucket name (Step 2)</td><td class="mono">AREA_RAW_S3_BUCKET</td><td><span class="tag">area</span></td><td>Model Bench has no S3 variable wired yet</td></tr>
+        <tr><td>Neon scratch/test string (Step 6)</td><td class="mono">TEST_DATABASE_URL</td><td><span class="tag">area</span> <span class="tag">model-bench</span></td><td>Test data only, dropped/recreated by tests</td></tr>
+        <tr><td>Neon real string (Step 6)</td><td class="mono">DATABASE_URL</td><td><span class="tag">area</span> <span class="tag">model-bench</span></td><td>Live data &mdash; secret, never in chat</td></tr>
+        <tr><td>&mdash; already decided, no value needed from you</td><td class="mono">AREA_ADAPTER / MODELBENCH_ADAPTER</td><td><span class="tag">area</span> <span class="tag">model-bench</span></td><td>Both set to <code class="inline">bedrock</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="final">
+    <h2>Today is done when</h2>
+    <div class="final-grid">
+      <div class="yes">
+        <h3>Checklist</h3>
+        <ul>
+          <li><span class="box"></span> Bedrock access requested for all 4 providers</li>
+          <li><span class="box"></span> One S3 bucket exists, name noted</li>
+          <li><span class="box"></span> One IAM user + access key .csv saved privately</li>
+          <li><span class="box"></span> One AWS budget + email alert exists</li>
+          <li><span class="box"></span> <code class="inline">vercel whoami</code> shows you logged in</li>
+          <li><span class="box"></span> Neon connection string saved privately</li>
+        </ul>
+      </div>
+      <div class="no">
+        <h3>Not today, on purpose</h3>
+        <ul>
+          <li>Entering any value into Vercel or into either repo</li>
+          <li><code class="inline">vercel link</code> / <code class="inline">vercel env add</code> / any deploy</li>
+          <li>Real model IDs or prices in <code class="inline">prices.json</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p><strong>What happens next:</strong> the "Sync/deploy tooling" task (already next in the fixed build order) &mdash; then Gate&nbsp;1 formally, where Claude gives you exact one-line commands to type each secret directly into Vercel yourself, never through this chat. After the whole build is deployed, Claude writes the full teaching doc covering everything built this session, as planned.</p>
+    <p>Judgment calls made while writing this runbook are logged as decision D17 in AREA's CONTEXT.md and D22 in Model Bench's CONTEXT.md.</p>
+  </footer>
+
+</div>
