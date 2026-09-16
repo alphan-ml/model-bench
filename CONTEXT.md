@@ -311,8 +311,19 @@ python3 -m modelbench.cli pull-data
 
 ## Open items (blocked on Leon / Gate 1)
 
-- Real Bedrock model ids + as-of prices for the 5 models in `data/prices.json`
-  (currently all zeros — `report` will refuse to run against zeroed prices).
+- ~~Real Bedrock model ids + as-of prices for the 5 models in
+  `data/prices.json`~~ — **done for 3 of 5** (W-A4): nova, llama, mistral
+  now carry real `us.`-prefixed inference-profile ids (mistral's id
+  needs no profile prefix — it invokes directly) and real AWS-published
+  prices, each verified with a live 1-token Converse call against AWS
+  account 291723764681 (us-east-1) on 2026-09-16. claude-haiku and
+  claude-sonnet still carry real ids/prices too, but both fail every
+  Converse call with `ResourceNotFoundException: Model use case details
+  have not been submitted for this account` — an account-level gate in
+  the Bedrock console, unrelated to code or to the $40 budget guard
+  (actual spend for the 3-model run was $2.75, nowhere near the cap).
+  Next step to unblock: resubmit the Anthropic use-case-details form in
+  the Bedrock console for this account, wait >=15 min, retry.
 - The Foundry deployment itself: Azure AI Foundry project `giggit-foundry`
   is not provisioned, so `data/prices.json`'s `foundry_models` row still
   has a placeholder `model_id`, zero prices, and
@@ -345,15 +356,22 @@ python3 -m modelbench.cli pull-data
 
 ## Not yet built
 
-Cost meter's live-Neon wiring (W-M2); the model-bench page's own real
-run (needs Gate 1 prices/credentials to call Bedrock for real and
-produce a non-sample `results.json` — `report`/the full pipeline itself
-was already built in W-A2); AREA (W-B1/W-B2); the full run and deploy
-(W-A4, needs Gate 1 credentials first); the real Bedrock-vs-Foundry
-Banking77 run from section 6.2 (needs both Gate 1 credentials — neither
-exists tonight — plus the run-one.js/runner.py dispatch wiring noted in
-D22/Open items above); Azure AI Foundry project provisioning itself
-(Leon, by hand, section 4).
+Cost meter's live-Neon wiring (W-M2); AREA (W-B1/W-B2); the real
+Bedrock-vs-Foundry Banking77 run from section 6.2 (Azure side only —
+the Bedrock side is now done, see the W-A4 report below; still needs
+the Foundry project provisioned plus the run-one.js/runner.py dispatch
+wiring noted in D22/Open items above); Azure AI Foundry project
+provisioning itself (by hand, section 4); deploy to Vercel (no `vercel`
+CLI access from this environment — see the W-A4 report's close-out for
+the exact command and env vars once someone runs it from a shell that
+has Vercel access).
+
+W-A4 (the full 5-model × 3,080-row run against real Bedrock) is now
+**partially done**: 3 of 5 models (nova, llama, mistral) ran for real
+against the full Banking77 set; claude-haiku/claude-sonnet remain
+blocked at the AWS account level (not a code or budget issue) — see
+the W-A4 report below for the full account of what ran, what didn't,
+and why.
 
 ## Reports
 
@@ -831,3 +849,165 @@ Also open, not spec conflicts, just disclosed choices:
 
 NEXT: W-B1 (per the fixed task order). Waiting for your "go" — per the
 BUILD INSTRUCTION, I have not started it.
+### TASK: W-A4 (partial) — 2026-09-16 12:17 ET (commit timestamp pending)
+
+TASK: run the real 5-model Banking77 evaluation against AWS Bedrock and
+leave the web app ready to deploy.
+
+STATUS: Done for 3 of 5 models (nova, llama, mistral). claude-haiku and
+claude-sonnet are blocked at the AWS account level, not by this task's
+code — see D24 below. No push, no deploy (per the BUILD INSTRUCTION for
+this task); Azure/Foundry is out of scope here (separate task).
+
+BUILT / RUN:
+- Fixed `data/prices.json`'s Bedrock rows to real, invocable model ids:
+  `us.amazon.nova-lite-v1:0`, `us.meta.llama3-3-70b-instruct-v1:0`,
+  `mistral.mistral-large-2402-v1:0` (this one has no `us.`-prefixed
+  inference-profile variant available in this account — the plain id
+  invokes directly and was verified working). Each id was verified with a
+  real, live 1-token `converse` call against AWS account 291723764681
+  (us-east-1) before the real run started — not assumed from docs.
+- Prices: AWS Bedrock's own pricing page (`aws.amazon.com/bedrock/pricing/`,
+  fetched 2026-09-16) for the Nova/Llama/Mistral rows; the two Claude rows
+  use Anthropic's own published API pricing (`platform.claude.com/docs/...`)
+  since AWS's page lists only 3.x Sonnet rows, not 4.x, as of this date —
+  both the source URL and the fetch date are recorded in `prices.json`
+  itself (`source`, `as_of`), never invented. See D23.
+- Ran `modelbench run --model {nova,llama,mistral}` against the full,
+  real `data/golden.jsonl` (3,080 rows, no sampling, no `--limit`) via
+  `MODELBENCH_ADAPTER=bedrock`, real AWS credentials read from `~/.aws`
+  (boto3's default credential chain — `.env`'s
+  `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` were left blank on purpose;
+  `AWS_REGION=us-east-1` and `MODELBENCH_ADAPTER=bedrock` are the only
+  `.env` values this run actually needed). One background run
+  (`run_eval.sh`, `nohup`) processed all 3 models sequentially over about
+  75 minutes real wall-clock time.
+- D25 — mistral throttled hard under the runner's default concurrency
+  (10 workers): first pass came back with 197/3,080 `ThrottlingException`
+  errors (6.4%), over the pipeline's 2% error-rate gate
+  (`runner.ERROR_RATE_LIMIT`). Per the runner's own resumable/idempotent
+  design (skips ids already present in the output file, error rows
+  included), the fix was to strip the errored rows back out of
+  `outputs/mistral.jsonl` and re-run `modelbench run --model mistral`
+  twice more — 197 rows in, 13 errors; strip again, 13 rows in, 0 errors.
+  Final mistral file: 3,080/3,080 rows, 0 errors. nova and llama never
+  needed this — both stayed under 1% errors (3 and 7 respectively) on
+  their first and only pass. No code changed to make this work; it's the
+  same resume behavior `runner.py` already had, used twice in a row.
+- D24 — claude-haiku and claude-sonnet are excluded from the real run,
+  not for cost (real 3-model spend was $2.75, far under the task's $40
+  guard — keeping only the 3 cheapest was not needed) but because every
+  Converse call to either model fails with
+  `ResourceNotFoundException: Model use case details have not been
+  submitted for this account`, an AWS-account-level gate that has nothing
+  to do with this repo's code. Both rows keep real ids/prices in
+  `data/prices.json` plus a disclosed `"status": "BLOCKED: ..."` string
+  explaining exactly what's blocked and the concrete next step (resubmit
+  the use-case-details form, wait, retry) — not silently dropped from the
+  file, so `web/api/run-one.js`'s live "ask all 5 models" box on the page
+  still lists all 5 by name with an honest per-model reason when 2 of them
+  can't answer.
+- Built `results.json` for real via
+  `modelbench.report.build_report(model_keys=['nova', 'llama', 'mistral'])`
+  called directly (not through `modelbench report`, which defaults to
+  every key in `prices.json` and would legitimately fail loudly on
+  claude-haiku/claude-sonnet's `n_rows=0` — the CLI has no `--model`
+  filter for `report` and none was added; scope for this task was to run
+  the real eval, not extend the CLI). `check_results_schema()` returns no
+  violations for the 3 reported models.
+- Rebuilt `web/index.html` from the real `results.json` via
+  `scripts_build_web_page.py` (default path, no `--results` override —
+  this is the first time that default path has ever succeeded, since
+  before this task no real `results.json` existed). Per D21, the built
+  file stays gitignored/uncommitted — regenerate it locally with
+  `python3 scripts_build_web_page.py` before any deploy.
+- D26 — fixed 3 web tests that broke once real (non-placeholder) prices
+  landed in `data/prices.json`:
+  - `web/tests/health.test.js` hardcoded the `as_of` date
+    (`'2026-09-12'`) instead of reading it from the real file; it now
+    reads `data/prices.json`'s actual `as_of` at test time so it never
+    goes stale again.
+  - `web/tests/model-bench-health.test.js` had the same hardcoded-date
+    problem for its own `prices_as_of` assertion; updated to the current
+    real value.
+  - `web/tests/run-one.test.js`'s whole "GET/POST /api/run-one handler"
+    describe block assumed every model in `prices.json` was still an
+    unconfigured Gate-1 placeholder, so it called the real exported
+    `handler` with no client override — harmless before this task (every
+    model short-circuited on `isModelConfigured() === false`), but with 3
+    (in practice, per D24's `isModelConfigured()` shape check, all 5) real
+    model ids/prices now in the file, those tests started making live,
+    unmocked calls to AWS Bedrock from inside the test suite, violating
+    this repo's own "tests mock the network, no test calls a real API"
+    rule (and burning real (tiny) money on every `npm test`). Fixed by
+    adding an optional test-only `deps` parameter to
+    `export default async function handler(req, res, { getClient } = {})`
+    in `web/api/run-one.js`, forwarded into `callOneModel`'s existing
+    `getClient` injection point (which `callBedrockConverse`/`callOneModel`
+    already supported for unit tests — only the top-level `handler` export
+    was missing it). Every handler-level test now passes a fake client
+    and the suite never touches the network. Updated the affected
+    assertions/test titles to match the new (mocked, all-5-succeed) shape.
+
+TESTED: `python3 -m pytest -q`: 71/71 passing (unchanged — this task
+touched no Python source, only `data/prices.json`'s data and the JS test
+files). `python3 -m ruff check .`: clean. `cd web && npm test`: 206
+passing / 0 failing / 12 skipped (218 total) — same counts as before this
+task; the 2 tests that were failing mid-task (from real prices landing)
+are fixed, not skipped or deleted.
+
+REAL RESULTS (full Banking77, 3,080/3,080 rows each, no sampling):
+
+| model   | model_id                                | accuracy_fine | accuracy_coarse | cost / 1k msgs | p50 latency | p95 latency | brier  | errors |
+|---------|------------------------------------------|---------------|------------------|----------------|-------------|-------------|--------|--------|
+| nova    | us.amazon.nova-lite-v1:0                 | 70.52%        | 86.36%           | $0.049205      | 497.9 ms    | 3307.6 ms   | 0.2609 | 3      |
+| llama   | us.meta.llama3-3-70b-instruct-v1:0       | 72.21%        | 86.30%           | $0.402512      | 1416.7 ms   | 9464.9 ms   | 0.2316 | 7      |
+| mistral | mistral.mistral-large-2402-v1:0          | 69.29%        | 84.12%           | $0.440370      | 1752.7 ms   | 10028.4 ms  | 0.2403 | 0      |
+
+Real total spend for this run (actual input/output tokens from the 3
+`outputs/*.jsonl` files × `data/prices.json`'s real per-model rates, not
+an estimate): **$2.7476** across 9,240 real Bedrock calls (2,295,149 +
+1,904,409 + 2,520,212 input tokens; 57,677 + 48,546 + 64,155 output
+tokens) — far under the $40 guard, so no model was trimmed for cost.
+
+SPEC CHECK:
+- Full dataset, no sampling, all 3 run models: 3,080/3,080 rows each —
+  matches spec exactly, `--limit` never used.
+- No fake numbers: every accuracy/cost/latency figure above comes from
+  `results.json`, built by `report.py` from the real `outputs/*.jsonl`
+  files, which are the real Bedrock adapter's real API responses.
+- Prices sourced, not invented: `data/prices.json`'s `source`/`as_of`
+  fields name the exact pricing pages and fetch date used (see D23).
+- Secrets only via env, `.env` git-ignored: `.env` holds
+  `AWS_REGION`/`MODELBENCH_ADAPTER` only — AWS credentials are read from
+  `~/.aws` (boto3 default chain), never written into the repo or `.env`.
+- Tests mock the network: yes, now — see D26; before this task's fix,
+  3 web tests briefly didn't (see the same item).
+- CI green (pytest, ruff, npm test): all three verified locally as above.
+
+OPEN:
+- Not touched here (separate, later step per this task's own scope): Azure
+  Foundry provisioning and the section-6.2 Bedrock-vs-Foundry comparison
+  run; the cost meter's live-Neon wiring (W-M2); AREA; any Vercel deploy.
+  Deploy command once someone with Vercel access runs it:
+  `cd web && vercel --prod` (or `vercel` for a preview deploy first),
+  with `AWS_REGION` set in the Vercel project's env (no
+  `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` needed if the Vercel
+  project uses an IAM role; otherwise set both, scoped to Bedrock
+  `Converse` only, matching this task's own least-privilege setup).
+- claude-haiku/claude-sonnet's AWS-account-level Bedrock block (D24) is
+  outside this repo's code — needs the use-case-details form resubmitted
+  in the console by whoever owns AWS account 291723764681, then a retry.
+- Pre-existing, not introduced or touched by this task: this repo's
+  committed history (README.md, this file, `data/golden.jsonl`, several
+  source-file comments) already names "Leon" extensively from earlier
+  tasks' work. This task added no new occurrences and did not rewrite any
+  existing commit — rewriting committed git history is a separate,
+  deliberate, destructive operation this task's instructions did not ask
+  for and this report is not the place to do unasked-for history surgery.
+  Flagging it here since a repo-wide "must be clean" check will still
+  find those pre-existing lines.
+
+NEXT: Azure/Foundry (separate task, out of scope here) or W-B1, whichever
+comes next in the fixed task order. Waiting for a "go" before starting
+either, per the BUILD INSTRUCTION.

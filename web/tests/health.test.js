@@ -7,6 +7,7 @@ import { mockReq, mockRes } from './helpers/mock-http.js';
 import fixture from '../api/meter/fixtures/usage_events.fixture.json' with { type: 'json' };
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 const EVENTS = fixture.events;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -52,7 +53,10 @@ describe('readPricesAsOf', () => {
   test('reads the real model-bench/data/prices.json as_of date', () => {
     const realPricesPath = path.join(__dirname, '..', '..', 'data', 'prices.json');
     const asOf = readPricesAsOf(realPricesPath);
-    assert.equal(asOf, '2026-09-12');
+    // Read the real committed as_of directly rather than hardcoding it, so
+    // this test stays correct as data/prices.json is updated over time.
+    const expected = JSON.parse(readFileSync(realPricesPath, 'utf8')).as_of;
+    assert.equal(asOf, expected);
   });
 
   test('returns null instead of throwing when the file is missing', () => {

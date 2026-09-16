@@ -1,13 +1,13 @@
 {
-  "as_of": "2026-09-12",
-  "source": "https://aws.amazon.com/bedrock/pricing/",
-  "region": "<region>",
+  "as_of": "2026-09-16",
+  "source": "https://aws.amazon.com/bedrock/pricing/ (Nova/Llama/Mistral rows); https://platform.claude.com/docs/en/about-claude/pricing (Claude Sonnet 4.5 / Haiku 4.5 -- AWS's own pricing page lists only Claude 3.5 Sonnet/Sonnet v2 rows as of this date, no 4.x row, so Anthropic's own published API pricing is used as the sourced number for these two rows; Bedrock has historically matched Anthropic direct pricing for the same model)",
+  "region": "us-east-1",
   "models": [
-    {"key": "claude-haiku", "model_id": "<exact bedrock id>", "vendor": "anthropic", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "claude-sonnet", "model_id": "<exact bedrock id>", "vendor": "anthropic", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "nova", "model_id": "<exact bedrock id>", "vendor": "amazon", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "llama", "model_id": "<exact bedrock id>", "vendor": "meta", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "mistral", "model_id": "<exact bedrock id>", "vendor": "mistral", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0}
+    {"key": "claude-haiku", "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0", "vendor": "anthropic", "provider": "bedrock", "input_per_1m": 1.00, "output_per_1m": 5.00, "status": "BLOCKED: Converse call fails with ResourceNotFoundException 'Model use case details have not been submitted for this account.' Verified real (not mocked) on 2026-09-16 against AWS account 291723764681 / us-east-1. Not included in the real run. Next step: resubmit the Anthropic use-case-details form in the Bedrock console for this account, wait >=15 min, retry `aws bedrock-runtime converse --model-id us.anthropic.claude-haiku-4-5-20251001-v1:0 ...`."},
+    {"key": "claude-sonnet", "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "vendor": "anthropic", "provider": "bedrock", "input_per_1m": 3.00, "output_per_1m": 15.00, "status": "BLOCKED: same ResourceNotFoundException as claude-haiku, verified 2026-09-16 (earlier the same day a converse call to this exact model id succeeded once, then it started failing this way on every subsequent retry -- the block appears to be intermittent/account-side, not a bad model id). Not included in the real run."},
+    {"key": "nova", "model_id": "us.amazon.nova-lite-v1:0", "vendor": "amazon", "provider": "bedrock", "input_per_1m": 0.06, "output_per_1m": 0.24},
+    {"key": "llama", "model_id": "us.meta.llama3-3-70b-instruct-v1:0", "vendor": "meta", "provider": "bedrock", "input_per_1m": 0.60, "output_per_1m": 2.00},
+    {"key": "mistral", "model_id": "mistral.mistral-large-2402-v1:0", "vendor": "mistral", "provider": "bedrock", "input_per_1m": 0.50, "output_per_1m": 1.50, "note": "AWS's pricing page (fetched 2026-09-16) lists a 'Mistral Large 3' row at this rate but no separate row for the 24.02 dated model id actually invocable in this account; this is the best-available current AWS-published Mistral Large rate and is used as a proxy for mistral.mistral-large-2402-v1:0."}
   ],
   "foundry_models": [
     {

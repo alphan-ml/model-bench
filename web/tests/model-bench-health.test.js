@@ -51,7 +51,7 @@ describe('computeModelBenchHealth', () => {
 
   test('reads prices_as_of from the real data/prices.json', () => {
     const health = computeModelBenchHealth({ resultsPath: '/nonexistent/results.json' });
-    assert.equal(health.prices_as_of, '2026-09-12');
+    assert.equal(health.prices_as_of, '2026-09-16');
   });
 });
 
