@@ -230,6 +230,48 @@ Real Bedrock calls need Gate-1 credentials; until then the live box's
 5 answers correctly show "Model not yet configured" for every model
 (verified in a real browser, not just by reading the code).
 
+## Azure AI Foundry provider (section 6.2, code/tests only)
+
+The build instruction's section 6.2 ("Model Bench — Azure AI Foundry as the
+second provider") calls for a second provider alongside Bedrock. Built
+tonight, with no live Azure credentials on this Mac (confirmed: no Azure
+CLI installed, `az account show` isn't even a command) and so never called
+against a real endpoint:
+
+- `src/modelbench/providers/azure_foundry.py` — `AzureFoundryProvider`,
+  implementing the same `Provider` interface as `bedrock.py`. Calls the
+  Foundry chat-completions REST endpoint (`{endpoint}/openai/deployments/
+  {deployment}/chat/completions?api-version=...`, `api-key` header) —
+  stdlib `urllib` only, same dependency-free pattern as
+  `anthropic_direct.py`/`openai_compatible.py`. Same retry contract (up to
+  5 attempts, backoff+jitter, on 429/5xx only) via the shared
+  `call_with_retries` helper. Reads `AZURE_FOUNDRY_ENDPOINT`,
+  `AZURE_FOUNDRY_KEY`, `AZURE_FOUNDRY_DEPLOYMENT` (and optionally
+  `AZURE_FOUNDRY_API_VERSION` — see `.env.example` and the module's own
+  docstring for the caveat on its default value, which is unverified
+  against a real Foundry docs page).
+- `get_provider("azure_foundry")` registered in `providers/__init__.py`.
+- Tests in `tests/test_providers_mock.py`: missing-config, a mocked success
+  response, the exact deployment-scoped URL + `api-key` header (not
+  `Authorization: Bearer`), a 503-then-succeed retry, and a non-retryable
+  400 — all against a mocked `urllib.request.urlopen`, never a real call.
+- `data/prices.json` gained a `foundry_models` array (kept separate from
+  the existing `models` array on purpose — see below) with one placeholder
+  row: zero prices, `"source": "PENDING - needs live Azure price page
+  lookup"`. No number was invented.
+
+**Why `foundry_models` is a separate array, not a 6th row in `models`:**
+`web/api/run-one.js` iterates `prices.models` and calls every entry through
+Bedrock (`callBedrockConverse`), and `web/tests/run-one.test.js` has a
+passing test asserting `prices.models.length === 5`. Adding a Foundry row
+directly into `models` would have made the live-box handler try to call
+Bedrock with a Foundry deployment id (wrong) and broken that test. Wiring
+`run-one.js` (and `runner.py`'s model-key → provider resolution) to
+actually dispatch to Foundry for `foundry_models` entries is real feature
+work — it touches the live production handler — and is left for the task
+that does the real two-provider run (after Gate 1), not built silently
+tonight as a side effect of adding a price row.
+
 ## Run it yourself (60 seconds)
 
 ```bash

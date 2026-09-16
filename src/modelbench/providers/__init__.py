@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from modelbench.providers.base import CallResult, Provider
 
-_KNOWN_ADAPTERS = ("bedrock", "anthropic_direct", "openai_compatible", "fake")
+_KNOWN_ADAPTERS = ("bedrock", "anthropic_direct", "openai_compatible", "azure_foundry", "fake")
 
 
 def get_provider(name: str) -> Provider:
@@ -23,6 +23,10 @@ def get_provider(name: str) -> Provider:
         from modelbench.providers.openai_compatible import OpenAICompatibleProvider
 
         return OpenAICompatibleProvider()
+    if name == "azure_foundry":
+        from modelbench.providers.azure_foundry import AzureFoundryProvider
+
+        return AzureFoundryProvider()
     if name == "fake":
         # Local smoke tests only. Not a valid choice for a real run: it is
         # not documented in .env.example's MODELBENCH_ADAPTER values and has

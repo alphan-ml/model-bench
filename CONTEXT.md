@@ -274,11 +274,53 @@ python3 -m modelbench.cli pull-data
   with the "no fake/invented numbers ever" rule even though every number
   in it is honestly labeled as sample data. Anyone can reproduce it
   locally with the one command in README.md's new Model Bench section.
+- D22 — 2026-09-16 (overnight, non-cloud-gated work per the build
+  instruction's section 6.2) — Built `src/modelbench/providers/
+  azure_foundry.py` (same `Provider` interface as `bedrock.py`; Foundry
+  chat-completions REST endpoint; `AZURE_FOUNDRY_KEY`/
+  `AZURE_FOUNDRY_DEPLOYMENT`/`AZURE_FOUNDRY_ENDPOINT` from env; same retry
+  contract) and registered it in `get_provider()`. Confirmed first, before
+  any of this: neither AWS nor Azure CLIs are even installed on this Mac
+  tonight (`aws`/`az`: command not found) — so this adapter has been
+  exercised only against a mocked HTTP response
+  (`tests/test_providers_mock.py`, 5 new tests) and has never made, and
+  cannot make, a real network call. Two disclosed judgment calls:
+  (1) `_DEFAULT_API_VERSION = "2024-06-01"` in `azure_foundry.py` is a
+  plausible Azure REST `api-version` string, NOT verified against a real
+  Foundry docs page (none exists yet) — flagged in the module docstring
+  and overridable via `AZURE_FOUNDRY_API_VERSION`; confirm at Gate 1.
+  (2) `data/prices.json`'s new Foundry placeholder row went into a new
+  `foundry_models` array, not appended as a 6th entry in the existing
+  `models` array, because `web/api/run-one.js` iterates `prices.models`
+  and calls every entry through Bedrock, and `web/tests/run-one.test.js`
+  has a passing test asserting `prices.models.length === 5` — appending
+  there would have made the live handler try to call Bedrock with a
+  Foundry deployment id and broken that test. Verified this reasoning by
+  actually running the JS suite before and after: 206 pass / 12 skipped
+  (TEST_DATABASE_URL unset, same as every prior report) / 0 fail, identical
+  both times. Wiring `run-one.js` and `runner.py`'s model-key→provider
+  resolution to actually dispatch to `foundry_models` entries is real
+  production-handler feature work, left for the task that does the real
+  two-provider run after Gate 1 — not built silently tonight as a side
+  effect of adding a price row. Python side: `python3 -m ruff check .`
+  clean, `python3 -m pytest -q` 71/71 (up from 66 — 5 new provider tests).
+  Also added a `provider` field ("bedrock") to the 5 existing
+  `data/prices.json` rows for clarity now that a second provider exists;
+  confirmed this extra key breaks nothing on either side (Python only
+  reads named fields it needs; the JS test above only checks `.length`).
 
 ## Open items (blocked on Leon / Gate 1)
 
 - Real Bedrock model ids + as-of prices for the 5 models in `data/prices.json`
   (currently all zeros — `report` will refuse to run against zeroed prices).
+- The Foundry deployment itself: Azure AI Foundry project `giggit-foundry`
+  is not provisioned, so `data/prices.json`'s `foundry_models` row still
+  has a placeholder `model_id`, zero prices, and
+  `"source": "PENDING - needs live Azure price page lookup"` (D22). Also
+  needed once that exists: wiring `web/api/run-one.js` and
+  `runner.py`'s model-key resolution to actually call
+  `AzureFoundryProvider` for `foundry_models` entries (not built — D22
+  explains why not).
 - AWS IAM key (Bedrock invoke + one S3 bucket), Neon connection strings,
   billing alarms, Vercel project env — none of these exist yet.
 - `openpaymentsdata.cms.gov` (CMS Open Payments, needed for W-B1),
@@ -307,7 +349,11 @@ Cost meter's live-Neon wiring (W-M2); the model-bench page's own real
 run (needs Gate 1 prices/credentials to call Bedrock for real and
 produce a non-sample `results.json` — `report`/the full pipeline itself
 was already built in W-A2); AREA (W-B1/W-B2); the full run and deploy
-(W-A4, needs Gate 1 credentials first).
+(W-A4, needs Gate 1 credentials first); the real Bedrock-vs-Foundry
+Banking77 run from section 6.2 (needs both Gate 1 credentials — neither
+exists tonight — plus the run-one.js/runner.py dispatch wiring noted in
+D22/Open items above); Azure AI Foundry project provisioning itself
+(Leon, by hand, section 4).
 
 ## Reports
 

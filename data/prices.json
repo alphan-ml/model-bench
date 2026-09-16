@@ -3,10 +3,22 @@
   "source": "https://aws.amazon.com/bedrock/pricing/",
   "region": "<region>",
   "models": [
-    {"key": "claude-haiku", "model_id": "<exact bedrock id>", "vendor": "anthropic", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "claude-sonnet", "model_id": "<exact bedrock id>", "vendor": "anthropic", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "nova", "model_id": "<exact bedrock id>", "vendor": "amazon", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "llama", "model_id": "<exact bedrock id>", "vendor": "meta", "input_per_1m": 0.0, "output_per_1m": 0.0},
-    {"key": "mistral", "model_id": "<exact bedrock id>", "vendor": "mistral", "input_per_1m": 0.0, "output_per_1m": 0.0}
+    {"key": "claude-haiku", "model_id": "<exact bedrock id>", "vendor": "anthropic", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
+    {"key": "claude-sonnet", "model_id": "<exact bedrock id>", "vendor": "anthropic", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
+    {"key": "nova", "model_id": "<exact bedrock id>", "vendor": "amazon", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
+    {"key": "llama", "model_id": "<exact bedrock id>", "vendor": "meta", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0},
+    {"key": "mistral", "model_id": "<exact bedrock id>", "vendor": "mistral", "provider": "bedrock", "input_per_1m": 0.0, "output_per_1m": 0.0}
+  ],
+  "foundry_models": [
+    {
+      "key": "azure-foundry",
+      "model_id": "<Foundry deployment name -- set via AZURE_FOUNDRY_DEPLOYMENT once Gate 1 provisions it>",
+      "vendor": "azure-foundry",
+      "provider": "azure_foundry",
+      "input_per_1m": 0.0,
+      "output_per_1m": 0.0,
+      "as_of": null,
+      "source": "PENDING - needs live Azure price page lookup"
+    }
   ]
 }
