@@ -14,6 +14,7 @@ import pytest
 
 from modelbench.providers import get_provider
 from modelbench.providers.anthropic_direct import AnthropicDirectProvider
+from modelbench.providers.azure_foundry import AzureFoundryProvider
 from modelbench.providers.base import RetryableError, call_with_retries
 from modelbench.providers.bedrock import BedrockProvider
 from modelbench.providers.fake import FakeProvider
@@ -247,6 +248,109 @@ def test_openai_compatible_success():
     assert result.output_tokens == 7
 
 
+# --- AzureFoundryProvider -----------------------------------------------------
+
+
+def test_azure_foundry_missing_config_errors_without_network():
+    with patch.dict("os.environ", {}, clear=True):
+        provider = AzureFoundryProvider()
+        result = provider.call("unused-model-id", "hi", max_tokens=60, temperature=0)
+    assert result.error is not None
+    assert result.retries == 0
+    assert result.adapter == "azure_foundry"
+
+
+def test_azure_foundry_success():
+    payload = {
+        "choices": [{"message": {"content": '{"intent": "card_arrival", "confidence": 80}'}}],
+        "usage": {"prompt_tokens": 45, "completion_tokens": 6},
+    }
+    provider = AzureFoundryProvider(
+        endpoint="https://example-foundry.openai.azure.com",
+        api_key="fake-key",
+        deployment="fake-deployment",
+    )
+    with patch("urllib.request.urlopen", return_value=_FakeHTTPResponse(payload)):
+        result = provider.call("unused-model-id", "hi", max_tokens=60, temperature=0)
+    assert result.error is None
+    assert result.input_tokens == 45
+    assert result.output_tokens == 6
+    assert result.adapter == "azure_foundry"
+    assert "card_arrival" in result.text
+
+
+def test_azure_foundry_builds_the_deployment_scoped_url():
+    """Foundry routes by deployment, not by the model_id argument -- the
+    request URL must embed AZURE_FOUNDRY_DEPLOYMENT and api-version, and
+    the api-key header (not an Authorization: Bearer header) must carry the
+    key, per the build instruction's section 6.2.
+    """
+    payload = {"choices": [{"message": {"content": "{}"}}], "usage": {}}
+    captured = {}
+
+    def fake_urlopen(req, timeout=60):
+        captured["url"] = req.full_url
+        captured["headers"] = {k.lower(): v for k, v in req.headers.items()}
+        return _FakeHTTPResponse(payload)
+
+    provider = AzureFoundryProvider(
+        endpoint="https://example-foundry.openai.azure.com/",
+        api_key="fake-key",
+        deployment="my-deployment",
+        api_version="2024-06-01",
+    )
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        provider.call("this-argument-is-ignored", "hi", max_tokens=60, temperature=0)
+
+    assert captured["url"] == (
+        "https://example-foundry.openai.azure.com/openai/deployments/"
+        "my-deployment/chat/completions?api-version=2024-06-01"
+    )
+    assert captured["headers"].get("api-key") == "fake-key"
+    assert "authorization" not in captured["headers"]
+
+
+def test_azure_foundry_retries_on_503_then_succeeds():
+    payload = {
+        "choices": [{"message": {"content": "{}"}}],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+    }
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=60):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise urllib.error.HTTPError(req.full_url, 503, "Service Unavailable", {}, None)
+        return _FakeHTTPResponse(payload)
+
+    provider = AzureFoundryProvider(
+        endpoint="https://example-foundry.openai.azure.com",
+        api_key="fake-key",
+        deployment="fake-deployment",
+    )
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch(
+        "modelbench.providers.base.time.sleep"
+    ):
+        result = provider.call("unused-model-id", "hi", max_tokens=60, temperature=0)
+    assert result.error is None
+    assert result.retries == 1
+
+
+def test_azure_foundry_non_retryable_400_fails_immediately():
+    def fake_urlopen(req, timeout=60):
+        raise urllib.error.HTTPError(req.full_url, 400, "Bad Request", {}, None)
+
+    provider = AzureFoundryProvider(
+        endpoint="https://example-foundry.openai.azure.com",
+        api_key="fake-key",
+        deployment="fake-deployment",
+    )
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        result = provider.call("unused-model-id", "hi", max_tokens=60, temperature=0)
+    assert result.error is not None
+    assert result.retries == 0
+
+
 # --- FakeProvider ------------------------------------------------------------
 
 
@@ -269,6 +373,7 @@ def test_fake_provider_returns_a_valid_label_from_the_prompt():
 
 def test_get_provider_known_names():
     assert isinstance(get_provider("fake"), FakeProvider)
+    assert isinstance(get_provider("azure_foundry"), AzureFoundryProvider)
 
 
 def test_get_provider_unknown_name_raises():
