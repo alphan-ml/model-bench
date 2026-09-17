@@ -21,3 +21,9 @@ node_modules/
 # output sitting in the repo. Build it locally for dev preview:
 #   python3 scripts_build_web_page.py --results results.sample.json --out web/index.html
 web/index.html
+
+# data/train.jsonl is a run-time cache of the Banking77 train split
+# (downloaded on first run by src/modelbench/baseline.py). Owner decision
+# 2026-09-17 (CONTEXT.md D28): data never goes to git; the test split
+# data/golden.jsonl is the one committed exception.
+data/train.jsonl

@@ -279,6 +279,124 @@ work — it touches the live production handler — and is left for the task
 that does the real two-provider run (after Gate 1), not built silently
 tonight as a side effect of adding a price row.
 
+## The Decision
+
+The recorded run (`results.json`, `outputs/nova.jsonl`, `outputs/llama.jsonl`,
+`outputs/mistral.jsonl`, `data/golden.jsonl`) shows Nova Lite at 70.5% fine
+accuracy for $0.0492 per 1,000 messages and Llama 3.3 70B at 72.2% for
+$0.4025. Five things below, all computed from files already in this repo by
+`modelbench.decision` (`python3 -m modelbench.decision` → `outputs/decision.json`,
+seed 26, generated 2026-09-17): a conventional classifier baseline, paired
+bootstrap intervals on accuracy and every pairwise difference, error
+analysis, a confidence-based escalation policy, and cost per correctly
+routed message.
+
+**Classifier baseline (Task 1).** TF-IDF + logistic regression
+(`src/modelbench/baseline.py`), trained on the Banking77 **train** split
+(10,003 rows) and evaluated on the same 3,080-row test split already
+committed at `data/golden.jsonl`. The train split is pulled the same way
+the test split was (direct file download from
+`raw.githubusercontent.com/PolyAI-LDN/task-specific-datasets/master/banking_data/train.csv`,
+per `pull_data.py`'s existing `_BASE_URL`) and cached at `data/train.jsonl`
+— gitignored, downloaded on the first run, reused after that. Only the
+test split `data/golden.jsonl` is committed. Re-run with:
+
+```bash
+python3 -m modelbench.decision
+```
+
+If the download fails, `modelbench.decision` still runs Tasks 2-5 and
+records Task 1 as `"status": "blocked"` with the exact underlying error in
+`outputs/decision.json`'s `classifier_baseline.error` field — it did not
+fail this run.
+
+| Model | Fine accuracy (95% CI) | Coarse accuracy | Cost / 1,000 msgs | Cost / 1,000 *correct* routes |
+|---|---|---|---|---|
+| Nova Lite | 70.5% [69.0%, 72.1%] | 86.4% | $0.0492 | $0.0698 |
+| Llama 3.3 70B | 72.2% [70.7%, 73.9%] | 86.3% | $0.4025 | $0.5574 |
+| Mistral Large | 69.3% [67.6%, 70.9%] | 84.1% | $0.4404 | $0.6356 |
+| **Classifier baseline (TF-IDF + logistic regression)** | **89.4% [88.3%, 90.4%]** | 94.7% | **$0.0000** | **$0.0000** |
+
+Cost per correct route = `cost_per_1k_usd / accuracy_fine` (routing.py) —
+the cost of 1,000 *correctly* routed messages, not 1,000 attempts. The
+classifier's $0 assumes zero per-message token cost, stated explicitly:
+*"the classifier runs locally (TF-IDF + logistic regression, scikit-learn,
+CPU inference) with no hosted-model API call, so there is no per-token
+price to look up in `data/prices.json`; this counts only the absence of a
+per-message model-provider charge, not the compute/hosting cost of running
+the classifier as a service."*
+
+**Paired uncertainty (Task 2).** A paired bootstrap over the same 3,080
+messages (`src/modelbench/bootstrap.py`), joined by id across models, 1,000
+resamples, seed 26. 95% intervals are the 2.5th/97.5th percentiles of the
+resampled differences; the point estimate is the actual observed
+difference, not a resampled mean:
+
+| Comparison | Difference (pp) | 95% interval |
+|---|---|---|
+| Nova − Llama | −1.7 | [−3.0, −0.3] |
+| Nova − Mistral | +1.2 | [−0.1, +2.7] |
+| Llama − Mistral | +2.9 | [+1.6, +4.3] |
+| Nova − classifier | −18.9 | [−20.6, −17.1] |
+| Llama − classifier | −17.2 | [−18.7, −15.4] |
+| Mistral − classifier | −20.1 | [−21.8, −18.4] |
+
+Nova vs. Mistral is the only comparison whose interval crosses zero — the
+other five, including every hosted model vs. the classifier, do not.
+
+**Error analysis (Task 3).** `src/modelbench/errors.py` computes the ten
+most confused (true, predicted) fine-intent pairs per model (full lists in
+`outputs/decision.json`'s `error_analysis.top_confused_pairs`) — the top
+one for two of three models is `card_arrival` → `card_delivery_estimate`
+(33 rows for Nova, 28 for Llama), and `verify_my_identity` →
+`why_verify_identity` is Mistral's worst (38 rows) and Nova's second-worst
+(26 rows). Across all three models jointly
+(`error_analysis.hardest_intents_all_three_wrong`), `get_physical_card` is
+the single worst intent in the dataset: **all three models get every one of
+its 40 test rows wrong** (100% joint failure rate) — followed by
+`order_physical_card` and `top_up_by_bank_transfer_charge` (72.5% joint
+failure rate each).
+
+**Escalation policy (Task 4).** `src/modelbench/escalation.py` splits the
+3,080 rows into two halves (seed 26), picks the smallest model-reported
+confidence threshold on one half that gets the auto-routed subset's
+accuracy to 95% (and, separately, 98%), and evaluates that fixed threshold
+on the *other* half — then repeats with the halves swapped. Confidence
+here is always **the model's own self-reported number**, never a
+calibrated probability; a null confidence (unparseable/empty response)
+always counts as escalated.
+
+| Model | Target | Fit → Eval | Threshold found | Automation rate | Accuracy (auto-routed) | Accuracy (escalated) |
+|---|---|---|---|---|---|---|
+| Nova | 95% / 98% | A→B | not reachable | 0.0% | — | 71.4% |
+| Nova | 95% / 98% | B→A | not reachable | 0.0% | — | 69.6% |
+| Llama | 95% / 98% | A→B | not reachable | 0.0% | — | 72.8% |
+| Llama | 95% / 98% | B→A | not reachable | 0.0% | — | 71.6% |
+| Mistral | 95% / 98% | A→B | not reachable | 0.0% | — | 70.3% |
+| Mistral | 95% / 98% | B→A | not reachable | 0.0% | — | 68.2% |
+
+No threshold on either half, for either target, ever reaches 95% or 98%
+accuracy for any of the three models — the 95%-row and 98%-row are
+identical in every case because neither target is reachable, not because
+the policy stopped searching early. This isn't a fluke of the split: the
+full-run quality/automation curve (`quality_automation_curve`, Task 5,
+thresholds 50-100 step 5, no train/test split) shows the *best*
+confidence-only subset each model ever reaches is Nova 74.4% accuracy (at
+91.6% automation, threshold≥95), Llama 81.6% (at 82.8% automation,
+threshold≥95), and Mistral 93.8% (at 26.6% automation, threshold=100) —
+Mistral gets closest but still falls short of 95%.
+
+**One sentence.** On this run, the local TF-IDF + logistic-regression
+baseline scores 17-21 points higher fine accuracy than any of the three
+hosted models while costing $0 per message, Llama is measurably (not just
+numerically) more accurate than Nova and Mistral at roughly 8x and 0.9x
+the per-message cost respectively, and none of the three hosted models'
+self-reported confidence supports a 95%-or-98%-accurate auto-route bucket
+on held-out data in either half-split direction — so this data does not
+support routing this task to Nova, Llama, or Mistral ahead of the
+classifier baseline, and it does not support a confidence-gated escalation
+tier for any of the three hosted models as they are configured today.
+
 ## Run it yourself (60 seconds)
 
 ```bash

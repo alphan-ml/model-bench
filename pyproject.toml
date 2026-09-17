@@ -10,6 +10,11 @@ dependencies = [
     # openai_compatible.py are stdlib-only (urllib) on purpose — they are
     # fallback-only paths and don't warrant their own SDK dependency.
     "boto3>=1.34",
+    # The decision pack's conventional-classifier baseline
+    # (src/modelbench/baseline.py): TF-IDF + logistic regression, both from
+    # scikit-learn. No network calls, no model-provider calls -- this is a
+    # local, deterministic scikit-learn fit, not a hosted model.
+    "scikit-learn>=1.4",
 ]
 
 [project.optional-dependencies]

@@ -33,7 +33,7 @@ creation cannot make, a real network call to any Azure endpoint.
 `_DEFAULT_API_VERSION` below is a plausible Azure OpenAI-style REST
 `api-version` query value, written from general knowledge of the Azure
 OpenAI/AI Foundry REST API shape -- it is NOT confirmed against the actual
-Azure AI Foundry docs page for whatever deployment Leon provisions at Gate
+Azure AI Foundry docs page for whatever deployment the owner provisions at Gate
 1, and must not be treated as a verified fact. Confirm (or override via the
 AZURE_FOUNDRY_API_VERSION env var) once a real Foundry project/deployment
 exists.

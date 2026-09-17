@@ -18,6 +18,12 @@
 - **Pulled:** 2026-09-12, via `raw.githubusercontent.com` (huggingface.co was not
   reachable from the build environment's network policy; the GitHub source is the
   same original data PolyAI published and is not a secondary mirror).
+- **`train` split** (10,003 examples, same 77 labels) was pulled the same way —
+  direct file download of `banking_data/train.csv` from the same source repo —
+  for the decision pack's classifier baseline (`src/modelbench/baseline.py`,
+  README.md's "The Decision"). Cached at `data/train.jsonl` (gitignored;
+  downloaded on the first `python3 -m modelbench.decision` run), first pulled
+  2026-09-17, same license and citation as the test split above.
 - **Modifications:** none to the text or labels. A `coarse_map.json` groups the 77
   fine intents into 10 coarse groups for this project's own reporting; the original
   fine-grained labels are kept unchanged in `data/golden.jsonl`.
