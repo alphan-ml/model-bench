@@ -71,7 +71,7 @@ export function readIntents(labelsPath = LABELS_PATH) {
 /** Not cached like the two above: prices.json is small, read once per
  * request, and Gate 1 will change it from outside this process -- a
  * cached copy could otherwise keep reporting "not configured" after
- * Leon fills in real prices until the next cold start. */
+ * the owner fills in real prices until the next cold start. */
 export function readPrices(pricesPath = PRICES_PATH) {
   return JSON.parse(readFileSync(pricesPath, 'utf8'));
 }

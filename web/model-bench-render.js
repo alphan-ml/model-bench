@@ -122,7 +122,7 @@ export function metricBars(models, metricKey, colorByKey, { sortDescending = tru
  * p50 latency, and Brier — one per dimension (quality / price / speed /
  * calibration), with coarse accuracy and p95 latency staying visible in
  * the leaderboard table and the reliability chart covering calibration in
- * more depth than a single Brier bar can. Flagged for Leon in the W-A3
+ * more depth than a single Brier bar can. Flagged for the owner in the W-A3
  * report in case a different 4 (or all 6) was intended.
  */
 export function headlineChartSpecs(models) {

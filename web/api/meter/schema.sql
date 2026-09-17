@@ -14,11 +14,11 @@
 -- 'text-to-forecast-call' and 'text-to-answer' are missing from 1.1's set;
 -- 'compose', 'verify', and 'live-box' are missing from section 3's set. Per
 -- the BUILD INSTRUCTION's stop rule ("any spec requirement conflicts with
--- another; quote both lines"), this is flagged to Leon in this task's chat
+-- another; quote both lines"), this is flagged to the owner in this task's chat
 -- report rather than silently picked one way — but rejecting a legitimate
 -- future AREA event because of an unresolved enum question would be a worse
 -- default than accepting one extra label, so the CHECK constraint below is
--- the UNION of both lists until Leon confirms which is right (or that both
+-- the UNION of both lists until the owner confirms which is right (or that both
 -- are, which is the working assumption for now).
 CREATE TABLE IF NOT EXISTS usage_events (
     event_id      BIGSERIAL PRIMARY KEY,
