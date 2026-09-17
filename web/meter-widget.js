@@ -86,7 +86,7 @@ export async function fetchSessionSummary(sessionId, fetchImpl = fetch) {
   return res.json();
 }
 
-function injectStyleOnce() {
+function injectStyleIfNeeded() {
   if (document.getElementById('meter-widget-style')) return;
   const style = document.createElement('style');
   style.id = 'meter-widget-style';
@@ -178,7 +178,7 @@ function renderDrawer(summary) {
 export function initMeterWidget(options = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const sessionId = options.sessionId ?? generateSessionId();
-  injectStyleOnce();
+  injectStyleIfNeeded();
 
   const pill = document.createElement('button');
   pill.id = PILL_ID;
