@@ -11,11 +11,11 @@ data/golden.jsonl's TEST split was already pulled with (see
 modelbench.pull_data's module docstring and README.md's "What's here"
 list: "pulled by direct file download... not hand-copied").
 
-Caching: data/golden.jsonl (the TEST split) is already committed under
-data/ and is NOT gitignored (checked .gitignore: no data/ or *.jsonl
-rule exists there), so the TRAIN split gets the same treatment -- once
-downloaded it is cached at data/train.jsonl and reused by every later run
-instead of re-fetching it every time. If a caller can't reach the network,
+Caching: the TRAIN split is downloaded on first run and cached at
+data/train.jsonl, which is gitignored (owner decision 2026-09-17, CONTEXT.md
+D28: data never goes to git; data/golden.jsonl, the TEST split, is the one
+committed exception). Every later run reuses the cached file instead of
+re-fetching it. If a caller can't reach the network,
 download_train_jsonl raises TrainDownloadError with the original error
 message; modelbench.decision catches that and reports Task 1 as blocked.
 Tasks 2-5 do not import or depend on this module succeeding.

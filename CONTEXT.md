@@ -317,8 +317,7 @@ python3 -m modelbench.cli pull-data
   (1) A TF-IDF + logistic-regression classifier baseline, trained on the
   Banking77 **train** split (10,003 rows, pulled the same direct-download
   way the test split already was, from the same `pull_data.py`
-  `_BASE_URL`, cached at `data/train.jsonl` — committed, same as
-  `data/golden.jsonl`, since neither is gitignored) and evaluated on the
+  `_BASE_URL`, cached at `data/train.jsonl` — gitignored as of D28) and evaluated on the
   same 3,080-row test split: 89.4% fine / 94.7% coarse accuracy, $0 per
   1,000 messages (assumption stated: no per-token model-provider charge,
   compute/hosting not counted). Disclosed tension, resolved in favor of
@@ -367,6 +366,15 @@ python3 -m modelbench.cli pull-data
   `azure_foundry.py`, `Claude outputs/gate1-setup.html`) with "the owner"
   — see the OPEN note below this task's own report for exactly what's left
   and why it's out of this task's scope to fix.
+
+- D28 — 2026-09-17 (owner, before merging M1) — `data/train.jsonl` does
+  NOT go to git. The owner applied `CLAUDE.md`'s general "data never goes
+  to git" rule over M1's more specific task instruction (see D27's flagged
+  tension). The file is now gitignored and is a run-time cache only:
+  `baseline.download_train_jsonl` fetches it on first use and reuses it
+  after that. `data/golden.jsonl` (the 3,080-row test split) stays
+  committed as the one exception, because the leaderboard and every report
+  join against it. Nothing in the decision pack's outputs changes.
 
 ## Open items (blocked on the owner / Gate 1)
 

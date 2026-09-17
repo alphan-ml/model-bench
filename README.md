@@ -298,8 +298,8 @@ committed at `data/golden.jsonl`. The train split is pulled the same way
 the test split was (direct file download from
 `raw.githubusercontent.com/PolyAI-LDN/task-specific-datasets/master/banking_data/train.csv`,
 per `pull_data.py`'s existing `_BASE_URL`) and cached at `data/train.jsonl`
-— committed, not gitignored, exactly like `data/golden.jsonl` (checked
-`.gitignore`: neither `data/` nor `*.jsonl` is excluded there). Re-run with:
+— gitignored, downloaded on the first run, reused after that. Only the
+test split `data/golden.jsonl` is committed. Re-run with:
 
 ```bash
 python3 -m modelbench.decision
