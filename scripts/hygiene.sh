@@ -4,8 +4,9 @@ set -u
 fail=0
 say(){ echo "HYGIENE FAIL: $1"; fail=1; }
 # 1. Banned identity strings in files (case-insensitive), excluding this script and git internals
-if git grep -Iil -E 'leon|alto|adair' -- . ':!scripts/hygiene.sh' ':!.git' | grep -q .; then
-  git grep -Iil -E 'leon|alto|adair' -- . ':!scripts/hygiene.sh'; say "banned identity string in files"; fi
+# Excluded: data/golden.jsonl -- Banking77 test rows contain place names such as 'Walton-On-The-Naze', whose letters contain 'alto'
+if git grep -Iil -E 'leon|alto|adair' -- . ':!scripts/hygiene.sh' ':!.git' ':!data/golden.jsonl' | grep -q .; then
+  git grep -Iil -E 'leon|alto|adair' -- . ':!scripts/hygiene.sh' ':!data/golden.jsonl'; say "banned identity string in files"; fi
 # 2. Same in full history (commit messages and authors)
 if git log --all --format='%an %ae %s %b' | grep -iqE 'leon|alto|adair|claude|anthropic'; then say "banned string or Claude attribution in git history"; fi
 # 3. Claude attribution trailers or names in files
