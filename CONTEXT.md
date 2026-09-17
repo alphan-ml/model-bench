@@ -62,8 +62,8 @@ python3 -m modelbench.cli pull-data
   real macOS user home (`~/.local/node/bin/vercel`, logged in) and works from
   the actual Terminal — the Cowork Mac-VM shell is a separate Linux sandbox
   with its own PATH and its own (Linux) Node, so it can't reach that install.
-  Deploy steps (task 7 onward, `make deploy`) will run from Leon's Terminal
-  directly, or this shell will need the CLI installed fresh plus a Vercel
+  Deploy steps (task 7 onward, `make deploy`) will run from the owner's
+  Terminal directly, or this shell will need the CLI installed fresh plus a Vercel
   token. Not a blocker before Gate 1.
 - D5 — 2026-09-12 — `pyproject.toml` targets Python 3.11 per spec. The
   Mac-VM shell's system Python is 3.10.12; the cloud workspace used to build
@@ -81,7 +81,7 @@ python3 -m modelbench.cli pull-data
   against the wrong interpreter. `python3 -m pytest -q` / `python3 -m ruff
   check .` route through the same interpreter the package was installed
   into and are unaffected. Switched `CONTEXT.md`, `README.md`, and CI to the
-  `python3 -m` form defensively, in case another machine (Leon's Mac
+  `python3 -m` form defensively, in case another machine (the owner's Mac
   included) has a similar `PATH` shadowing setup.
 - D7 — 2026-09-12 (W-A2) — Two small additions beyond section 2's exact
   repo layout: `src/modelbench/providers/fake.py` and `tests/test_runner.py`.
@@ -185,7 +185,7 @@ python3 -m modelbench.cli pull-data
   in the W-M1 report's OPEN section below, rather than halting the task —
   the union is safe (it only widens what's accepted) and blocking on this
   would have stopped ~95% of otherwise-unblocked W-M1 work. Flagging for
-  Leon: if one of these two lists was meant to replace the other, say so
+  the owner: if one of these two lists was meant to replace the other, say so
   and the constraint narrows to match; until then the union stands. Verified
   against a real PostgreSQL 16 database (not just read as text) — see
   `web/tests/schema.test.js`'s "accepts every step value from BOTH spec
@@ -201,8 +201,8 @@ python3 -m modelbench.cli pull-data
   unreadable (three bars/rows, one indistinguishable label). "Mon YY" is
   kept (`charts.js`'s `formatMonYy`) for anything coarser than daily; "Mon
   D" (`formatMonD`) is used specifically for the day-grouped chart/table,
-  where day-level distinction is the entire point. Flagging for Leon in
-  case "Mon YY" was meant for a different chart than the daily one.
+  where day-level distinction is the entire point. Flagging for the owner
+  in case "Mon YY" was meant for a different chart than the daily one.
 - Two more fixes from that same visual pass, not spec conflicts, just bugs
   caught by looking at the rendered output rather than only the code: (1)
   a short bar's value label used to be positioned with `Math.max` where it
@@ -221,7 +221,7 @@ python3 -m modelbench.cli pull-data
   UTC time with "ET" mislabeled onto it, not a real ET conversion — e.g.
   W-A1 said "19:05 ET" but its commit (`5849e9e`) is timestamped
   `2026-09-12T19:05:59+00:00` UTC, which is 15:05 EDT, four hours earlier.
-  Caught while answering Leon's question about session/context state, by
+  Caught while answering the owner's question about session/context state, by
   checking `git log --date=iso-strict` against the reports' stated times
   rather than assuming they were right. Fixed all three headings below to
   the correct EDT time, with the UTC commit timestamp kept alongside for
@@ -244,7 +244,7 @@ python3 -m modelbench.cli pull-data
   per compared dimension and matches the leaderboard's own column order.
   p50 (not p95) was picked as the "typical" number worth a headline
   panel; p95 stays in the leaderboard table for the slow-case reader.
-  Flagging for Leon in case a different 4th panel or p95 was intended.
+  Flagging for the owner in case a different 4th panel or p95 was intended.
 - D20 — 2026-09-12 (W-A3, self-caught bugs) — Two real bugs found by
   Playwright-screenshotting the actual rendered page, not by reading the
   code (same pattern as D16): (1) the page's `/api/health` fetch callback
@@ -308,8 +308,67 @@ python3 -m modelbench.cli pull-data
   `data/prices.json` rows for clarity now that a second provider exists;
   confirmed this extra key breaks nothing on either side (Python only
   reads named fields it needs; the JS test above only checks `.length`).
+- D27 — 2026-09-17 (M1, decision pack) — Built the "decision pack" behind
+  README.md's new "The Decision" section: five things, all computed from
+  files already in this repo, via five new pure modules under
+  `src/modelbench/` (`baseline.py`, `bootstrap.py`, `errors.py`,
+  `escalation.py`, `routing.py`) orchestrated by a new
+  `decision.py` (`python3 -m modelbench.decision` → `outputs/decision.json`).
+  (1) A TF-IDF + logistic-regression classifier baseline, trained on the
+  Banking77 **train** split (10,003 rows, pulled the same direct-download
+  way the test split already was, from the same `pull_data.py`
+  `_BASE_URL`, cached at `data/train.jsonl` — committed, same as
+  `data/golden.jsonl`, since neither is gitignored) and evaluated on the
+  same 3,080-row test split: 89.4% fine / 94.7% coarse accuracy, $0 per
+  1,000 messages (assumption stated: no per-token model-provider charge,
+  compute/hosting not counted). Disclosed tension, resolved in favor of
+  the more specific instruction: `CLAUDE.md`'s "Data never goes to git"
+  rule (added in the immediately-prior commit) would argue against
+  committing `data/train.jsonl`; this task's own instructions gave a more
+  specific, directly-on-point rule instead ("save under data/ only if the
+  repo already keeps the test split there and it is not gitignored"),
+  which is true here (`data/golden.jsonl` is committed and un-gitignored)
+  — followed that literally, since it's the specific instruction for this
+  exact decision. Flagging for the owner in case `CLAUDE.md`'s newer,
+  general rule was meant to apply here too, in which case `data/train.jsonl`
+  should move to a gitignored cache dir instead.
 
-## Open items (blocked on Leon / Gate 1)
+  The download succeeded this run; if it
+  ever fails, `run_baseline()` returns `{"status": "blocked", "error":
+  "<exact message>"}` and Tasks 2-5 still run (verified with a
+  monkeypatched `urlopen` failure in `tests/test_baseline.py`/
+  `test_decision.py`, not just by inspection). (2) A paired bootstrap
+  (1,000 resamples, seed 26) over the shared 3,080 ids: every hosted-model
+  pairwise difference's 95% interval excludes zero except Nova-vs-Mistral.
+  (3) Confusion-pair and joint-failure analysis: `get_physical_card` is
+  wrong for all three models on all 40 of its test rows. (4) An escalation
+  policy fit on model-reported confidence (explicitly labeled as such
+  everywhere, never treated as a calibrated probability), split into
+  halves by seed 26, both directions: no threshold reaches 95% or 98%
+  accuracy for any of the three models on either half — the full-run
+  quality/automation curve shows why (best confidence-only subset per
+  model: Nova 74.4%, Llama 81.6%, Mistral 93.8%, all below both targets).
+  (5) Cost per correctly routed message (`cost_per_1k / accuracy_fine`).
+  Full numbers, the one-sentence decision, and both tables are in
+  README.md's new "The Decision" section; every number in
+  `outputs/decision.json` also carries the seed, run date, and source file
+  names it was computed from. No model-provider call anywhere in this
+  work — the classifier is local scikit-learn, and the only network
+  access is the one-time, cached Banking77 train-split download.
+  `scikit-learn` (plus its own `numpy`/`scipy` pull-ins) is now a real
+  `pyproject.toml` dependency for this reason. 36 new tests (`test_baseline.py`,
+  `test_bootstrap.py`, `test_errors.py`, `test_escalation.py`,
+  `test_routing.py`, `test_decision.py`), all against small in-memory or
+  tmp_path fixtures, no network, no real 3,080-row data in any test.
+  `python3 -m ruff check .` clean, `python3 -m pytest -q` 107/107 (up from
+  71). Also, while closing out this task's own "no owner-name, no banned
+  substring" rule: replaced every by-first-name mention of the owner that
+  this task was allowed to touch (this file, `.env.example`,
+  `azure_foundry.py`, `Claude outputs/gate1-setup.html`) with "the owner"
+  — see the OPEN note below this task's own report for exactly what's left
+  and why it's out of this task's scope to fix.
+
+## Open items (blocked on the owner / Gate 1)
 
 - ~~Real Bedrock model ids + as-of prices for the 5 models in
   `data/prices.json`~~ — **done for 3 of 5** (W-A4): nova, llama, mistral
@@ -338,7 +397,7 @@ python3 -m modelbench.cli pull-data
   `bedrock-runtime.us-east-1.amazonaws.com` (W-A4/W-B4), `console.neon.tech`
   (W-M2), and `api.vercel.com`/`vercel.com` (deploy) are all blocked by this
   environment's egress policy per Fable's measurement. Each of those steps
-  either needs to run from Leon's Mac Terminal directly, or needs the
+  either needs to run from the owner's Mac Terminal directly, or needs the
   relevant token/credential wired in so a different network path is used.
 - D15 (above): the `usage_events.step` conflict between
   `SPEC-cost-meter-and-angi-reuse.md` §1.1 and §3 — resolved as a union for
@@ -407,7 +466,7 @@ BUILT:
   attribution note), `.github/workflows/ci.yml`, `README.md`, `CONTEXT.md`.
 - Git repo initialized, 4 commits (scaffold/config, data, code+tests,
   docs), no `.env` ever created or committed.
-- Repo copied to `~/Claude/model-bench` on Leon's Mac (git history intact)
+- Repo copied to `~/Claude/model-bench` on the owner's Mac (git history intact)
   and mirrored to Google Drive HQ/giggit/model-bench (a flattened snapshot
   doc plus standalone CONTEXT.md/README.md — a backup, not the source of
   truth; the Mac copy and its git history are canonical).
@@ -436,7 +495,7 @@ SPEC CHECK:
 OPEN:
 - Gate 1 items unchanged: Bedrock model ids/prices, AWS/Neon/Vercel
   credentials — see CONTEXT.md "Open items".
-- Flagging one thing for Leon directly: his own instruction was "add it to
+- Flagging one thing for the owner directly: their own instruction was "add it to
   HQ/giggit for anything giggit to be clear," and that's where this got
   mirrored (`HQ/giggit/model-bench/`). A separate note relayed from Fable
   suggested `HQ/projects/sunshine-audit/` instead. I followed your direct
@@ -489,7 +548,7 @@ BUILT:
   Banking77 rows through the fake adapter, no network or secrets, writing
   to a new gitignored `.smoke_outputs/` (never `outputs/`).
 - 3 commits (provider layer; runner/metrics/report/cli; docs), on top of
-  W-A1's 5. Repo re-synced to `~/Claude/model-bench` on Leon's Mac and
+  W-A1's 5. Repo re-synced to `~/Claude/model-bench` on the owner's Mac and
   re-mirrored to Drive HQ/giggit/model-bench.
 
 TESTED: `python3 -m ruff check .` clean. `python3 -m pytest -q`: 60/60
@@ -999,15 +1058,93 @@ OPEN:
   outside this repo's code — needs the use-case-details form resubmitted
   in the console by whoever owns AWS account 291723764681, then a retry.
 - Pre-existing, not introduced or touched by this task: this repo's
-  committed history (README.md, this file, `data/golden.jsonl`, several
-  source-file comments) already names "Leon" extensively from earlier
-  tasks' work. This task added no new occurrences and did not rewrite any
-  existing commit — rewriting committed git history is a separate,
-  deliberate, destructive operation this task's instructions did not ask
-  for and this report is not the place to do unasked-for history surgery.
-  Flagging it here since a repo-wide "must be clean" check will still
-  find those pre-existing lines.
+  committed history (this file, several source-file comments, and a stray
+  `Claude outputs/gate1-setup.html`) already named the owner directly by
+  first name, extensively, from earlier tasks' work. This task added no
+  new occurrences and did not rewrite any existing commit — rewriting
+  committed git history is a separate, deliberate, destructive operation
+  this task's instructions did not ask for and this report is not the
+  place to do unasked-for history surgery. Flagging it here since a
+  repo-wide "must be clean" check will still find those pre-existing
+  lines. (2026-09-17 update: the M1 decision-pack task replaced every
+  first-name occurrence it was allowed to touch — this file, `.env.example`,
+  `azure_foundry.py`, `Claude outputs/gate1-setup.html` — with "the owner".
+  What's left, and can't be fixed without violating that task's own explicit
+  scope limits, is: (1) real by-name comments inside `web/` — that task was
+  told not to touch `web/` or the site; (2) one coincidental substring match
+  inside `data/golden.jsonl` row 858's real customer-complaint text (an
+  English place name that happens to embed one of hygiene.sh's banned
+  four-letter substrings) — real Banking77 data, never to be hand-edited;
+  and (3) this repo's git history itself, which predates that task and
+  which no task here is authorized to rewrite. `scripts/hygiene.sh` still
+  reports FAIL for exactly these three reasons, not for anything that task
+  added.)
 
 NEXT: Azure/Foundry (separate task, out of scope here) or W-B1, whichever
 comes next in the fixed task order. Waiting for a "go" before starting
 either, per the BUILD INSTRUCTION.
+
+### TASK: M1 — 2026-09-17 — decision pack
+
+TASK: turn the recorded run (Nova 70.5% fine accuracy at $0.0492/1k vs.
+Llama 72.2% at $0.4025/1k) into a decision: a conventional classifier
+baseline, paired-bootstrap uncertainty, error analysis, a confidence-based
+escalation policy, and cost per correctly routed message — all computed
+from files already in this repo, no model-provider or other network call
+except the one-time Banking77 train-split download.
+
+STATUS: Done. See D27 above for the full account.
+
+BUILT: `src/modelbench/{baseline,bootstrap,errors,escalation,routing,decision}.py`;
+`data/train.jsonl` (10,003 rows, committed); `outputs/decision.json`
+(seed 26, run date 2026-09-17, source file names); README.md's new "The
+Decision" section; `data/ATTRIBUTION.md` updated for the train split;
+`pyproject.toml` gained `scikit-learn` as a real dependency; 6 new test
+files (36 tests).
+
+TESTED: `python3 -m ruff check .` clean. `python3 -m pytest -q`: 107/107
+(up from 71 — the existing 71 are unchanged and still pass). `bash
+scripts/hygiene.sh`: still reports FAIL, for three reasons entirely
+outside this task's editable scope (see D27's closing note and the OPEN
+item below) — not for anything this task added; this task's own new files
+and this task's own commit carry no owner name, no banned substring, and
+no AI/assistant attribution.
+
+SPEC CHECK:
+- All five parts computed from files already in the repo: yes — no new
+  data was invented; the classifier baseline is the only new external
+  input, and it's the Banking77 train split, pulled the documented way.
+- No model-provider/network call other than the disclosed one-time,
+  cached train-split download: yes — verified by reading every new
+  module; the classifier is local scikit-learn.
+- `results.json` and `outputs/{nova,llama,mistral}.jsonl` untouched: yes.
+- `web/` and the site untouched: yes.
+- Existing 71 tests still pass, ruff still clean, no `# noqa`, no ruff
+  rule changes, no test weakened: yes.
+
+OPEN:
+- `scripts/hygiene.sh` does not print `HYGIENE OK` after this task, and
+  cannot be made to without violating this task's own explicit limits.
+  Exact remaining causes (all pre-existing, confirmed present on `main`
+  before this task's branch was even created — verified directly): (1)
+  real by-first-name comments inside `web/api/meter/schema.sql`,
+  `web/api/run-one.js`, `web/model-bench-render.js` (this task was told
+  not to touch `web/` or the site); (2) one coincidental substring match
+  inside `data/golden.jsonl` row 858's real customer-complaint text (a
+  real English place name, not a person's name, not something this task
+  may hand-edit); (3) `git log --all` still carries the owner's first name
+  and this project's assistant's name in commit messages/authors from
+  every prior task's history, which predates this task and which no task
+  here is authorized to rewrite (rewriting shared git history is
+  destructive and was not asked for). This task's own diff introduces none
+  of these three; it removed every occurrence it was allowed to touch
+  (this file, `.env.example`, `azure_foundry.py`,
+  `Claude outputs/gate1-setup.html`) — see D27.
+- The escalation policy finding itself is worth flagging directly: none of
+  the three hosted models' self-reported confidence supports a
+  95%-or-98%-accurate auto-route bucket on this dataset, in either
+  half-split direction. That is a real result, not a bug — see README.md's
+  "The Decision" for the full-run quality/automation curve that explains
+  why (each model's confidence ceiling tops out below both targets).
+
+NEXT: nothing further requested for this task.
