@@ -397,6 +397,74 @@ support routing this task to Nova, Llama, or Mistral ahead of the
 classifier baseline, and it does not support a confidence-gated escalation
 tier for any of the three hosted models as they are configured today.
 
+## Live Eval Canary
+
+A scheduled job (`.github/workflows/canary.yml`) calls the **live**
+`POST https://giggitai.com/api/model-bench-run` endpoint every 6 hours
+(`cron "17 */6 * * *"`, plus manual `workflow_dispatch`) and writes one
+record to a public `ledger` branch in this repo — the same shape every
+giggitai.com system uses, so the site's Live Eval tab can replay every
+system's canary history as one terminal feed.
+
+**What runs.** The 10 fixed rows in `canary/rows.json` — drawn once from
+`data/golden.jsonl` (the committed Banking77 **test**/holdout split) with
+seed 26, never resampled — are sent one at a time to the live endpoint.
+Each call answers with all three currently-configured hosted models
+(nova, llama, mistral); the same 10 messages are also run through the
+local classifier baseline (`src/modelbench/baseline.py`), so every record
+scores four models. `src/modelbench/canary.py` builds the record;
+`scripts_build_canary_rows.py` is the one-off generator that produced
+`canary/rows.json` (re-running it with seed 26 reproduces the same file —
+`tests/test_canary.py` checks both that every canary row id is really in
+the holdout split and that regenerating it matches the committed file
+byte for byte).
+
+**The headline metric** is `accuracy_fine_nova` over the 10 rows: fine
+intent accuracy for the Nova Lite model, compared against the recorded
+full-run value (0.705, from `results.json`) with a tolerance of **0.25**
+— wide on purpose, since 10 rows can only land on multiples of 0.1 and
+the canary exists to catch a broken endpoint or a materially different
+model, not to reproduce the full 3,080-row run's confidence interval.
+Llama, Mistral, and the classifier's fine accuracy, plus the real dollar
+cost of the run (summed from the endpoint's own `cost_usd` fields — never
+estimated), are recorded in the record's `extra` object. Per the "no
+fallback numbers" rule, a hosted-model error on any canary row counts as
+wrong for that row (never dropped, never replaced by a recorded value),
+and any error on the headline (nova) row forces `match=false` regardless
+of tolerance.
+
+**Where the ledger is.** `git fetch origin ledger` (an orphan branch —
+`git log main` never touches it). `ledger/latest.json` is the most recent
+record; `ledger/runs.jsonl` is every record ever written, one JSON object
+per line, oldest first. Read with:
+
+```bash
+curl -s https://raw.githubusercontent.com/alphan-ml/model-bench/ledger/ledger/latest.json
+curl -s https://raw.githubusercontent.com/alphan-ml/model-bench/ledger/ledger/runs.jsonl
+```
+
+**How to read `match`.** `true` means the observed nova accuracy over
+this run's 10 rows fell within 0.25 of the recorded 0.705 and every
+nova call succeeded. `false` means either the accuracy moved further
+than that (a real regression signal) or at least one nova call on the
+canary rows errored — the record's `errors` field and `lines` (a short,
+real, unfaked terminal transcript of that specific run) say which.
+
+**Spend.** Each canary run makes 10 live calls, each of which answers
+with all 3 hosted models — 30 hosted-model calls per run, 4 runs/day (one
+per 6-hour cron tick) = 120 hosted-model calls/day. Using the real,
+recorded per-message cost from `results.json` (nova $0.0000492, llama
+$0.0004025, mistral $0.0004404 — the same numbers behind "The Decision"
+above, not an estimate): **$0.00089/message-run × 10 messages × 4
+runs/day ≈ $0.036/day** (about $1.07/month). A single live sample call
+made while building this feature cost $0.00089 for one message across
+the three models, confirming the estimate.
+
+If the endpoint ever answers "not configured" or a spend-cap error, the
+canary records that as a per-model error (never a fallback number) and
+the workflow still commits the record — see CONTEXT.md for whether that
+has happened on a real run.
+
 ## Run it yourself (60 seconds)
 
 ```bash

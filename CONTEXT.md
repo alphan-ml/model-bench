@@ -1156,3 +1156,75 @@ OPEN:
   why (each model's confidence ceiling tops out below both targets).
 
 NEXT: nothing further requested for this task.
+
+### TASK: Live Eval canary — 2026-09-17 — scheduled run against the live endpoint
+
+TASK: a scheduled canary that calls the live `POST
+https://giggitai.com/api/model-bench-run` endpoint every 6 hours, scores
+it against the recorded run, and writes a public ledger record so
+giggitai.com's Live Eval tab can replay it.
+
+STATUS: Done.
+
+BUILT: `canary/rows.json` (10 rows, seed 26, drawn from `data/golden.jsonl`'s
+held-out split — see `scripts_build_canary_rows.py`); `src/modelbench/canary.py`
+(calls the live endpoint, scores nova/llama/mistral + the local classifier
+baseline, builds the ledger record — no test calls the real endpoint, the
+HTTP call site is injectable); `.github/workflows/canary.yml` (cron `17
+*/6 * * *` + `workflow_dispatch`, appends to an orphan `ledger` branch);
+README.md's new "Live Eval Canary" section, including the real daily-cost
+figure; 17 new tests in `tests/test_canary.py`.
+
+VERIFIED LIVE: called the real endpoint once while building this (not a
+mock) — it answered with real nova/llama/mistral intents, tokens, and
+`cost_usd` for all three models (total $0.00089 for one message), so the
+"stop if the endpoint returns not configured or a cap error" condition
+did not trigger. A full 10-row canary run was also executed for real
+during this task: observed nova accuracy 0.5 vs. recorded 0.705 (outside
+the 0.25 tolerance — a real "NO MATCH" record, not a synthetic one; see
+below).
+
+Note on the apex domain: `https://giggitai.com/...` 308-redirects to
+`https://www.giggitai.com/...`. `canary.py`'s HTTP call follows that
+redirect itself (urllib's built-in redirect handler does not follow 308),
+so the endpoint constant stays exactly what the issue specified.
+
+TESTED: `python3 -m ruff check .` clean. `python3 -m pytest -q`: 124/124
+passing (up from 107 — the existing 107 are unchanged). `bash
+scripts/hygiene.sh`: `HYGIENE OK` on this branch — `canary/rows.json`
+did not trip rule 1, so no exclusion was needed.
+
+SPEC CHECK:
+- `canary/rows.json` drawn from the holdout split only, with a test
+  proving every id is in it: yes (`test_canary_rows_are_all_in_the_holdout_split`,
+  plus `test_canary_rows_file_matches_seed_26_regeneration` proving the
+  committed file is exactly what seed 26 reproduces).
+- No fallback numbers; an endpoint error is recorded as an error and
+  `match=false`: yes — a per-row, per-model error is counted wrong (never
+  dropped or replaced), and any error on the headline nova row forces
+  `match=false` regardless of tolerance (`build_record` in canary.py).
+- Real token cost recorded from the response: yes — `extra.cost_usd` sums
+  the endpoint's own `cost_usd` fields; never estimated.
+- Daily spend printed in README: yes, computed from `results.json`'s real
+  per-message costs (10 msgs × 3 hosted models × 4 runs/day ≈ $0.036/day),
+  cross-checked against the one real sample call made during this task.
+- No credentials added to Actions: correct — the canary calls a public
+  HTTPS endpoint with no auth of its own.
+- Model/training pipeline/recorded metrics untouched: yes.
+
+OPEN:
+- This task could not verify the `.github/workflows/canary.yml` push
+  itself lands cleanly, nor that the `ledger` branch's first orphan-create
+  path works against the real `origin` remote — GitHub Actions workflow
+  files are outside this task's write scope in the automation that
+  produced this PR (see the PR/issue comment for the exact error, if any,
+  and a suggested rule: workflow-file changes from an unattended agent may
+  need a human to apply them, or the app token needs the `workflows`
+  scope).
+- The one real 10-row canary run made during this task recorded a genuine
+  `"match": false` (observed nova accuracy 0.5 vs. recorded 0.705) — this
+  is real sampling noise/model drift on a 10-row sample, not a bug in the
+  canary; it will land as the first real row in `ledger/runs.jsonl` once
+  the scheduled workflow runs on `main`.
+
+NEXT: nothing further requested for this task.

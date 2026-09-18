@@ -1,0 +1,62 @@
+[
+  {
+    "id": 232,
+    "text": "I tried to take money from my card, but it didn't work. Later I saw that the transaction is still in progress. What's goign on?",
+    "intent_fine": "pending_cash_withdrawal",
+    "intent_coarse": "atm_cash"
+  },
+  {
+    "id": 523,
+    "text": "I accidentally blocked my PIN. How do I reset it?",
+    "intent_fine": "pin_blocked",
+    "intent_coarse": "app_pin_access"
+  },
+  {
+    "id": 830,
+    "text": "Is using my card free?",
+    "intent_fine": "card_payment_fee_charged",
+    "intent_coarse": "fees_charges_rates"
+  },
+  {
+    "id": 840,
+    "text": "I completed an in country transfer a few days ago and was sure to check the account information several times since the transaction was completed, but the funds are still not available. What is the problem?",
+    "intent_fine": "transfer_not_received_by_recipient",
+    "intent_coarse": "transfers_payments"
+  },
+  {
+    "id": 1771,
+    "text": "Why is my refund missing from my  statement?",
+    "intent_fine": "Refund_not_showing_up",
+    "intent_coarse": "refunds_cancellations"
+  },
+  {
+    "id": 1954,
+    "text": "What should I do with my atm that got stuck?",
+    "intent_fine": "card_swallowed",
+    "intent_coarse": "atm_cash"
+  },
+  {
+    "id": 2228,
+    "text": "Why was there a fee for my transfer?",
+    "intent_fine": "transfer_fee_charged",
+    "intent_coarse": "fees_charges_rates"
+  },
+  {
+    "id": 2460,
+    "text": "is there a way to do top up with cash deposit",
+    "intent_fine": "top_up_by_cash_or_cheque",
+    "intent_coarse": "top_up"
+  },
+  {
+    "id": 2701,
+    "text": "I transferred some money but it is yet to arrive.",
+    "intent_fine": "balance_not_updated_after_bank_transfer",
+    "intent_coarse": "top_up"
+  },
+  {
+    "id": 3060,
+    "text": "I am from the EU, can I sign up?",
+    "intent_fine": "country_support",
+    "intent_coarse": "currency_crypto"
+  }
+]
