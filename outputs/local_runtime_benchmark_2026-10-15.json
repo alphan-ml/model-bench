@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "source_commit": "b5cc032db25dca957f2746aef4e72b3f6cd18dc6",
+  "run_id": 38737680802,
+  "run_url": "https://github.com/alphan-ml/model-bench/actions/runs/38737680802",
+  "run_date": "2026-10-15",
+  "interpretation": "experiment, not published serving result",
+  "n_train_rows": 10003,
+  "n_test_rows": 3080,
+  "fine_accuracy": 0.8938311688311689,
+  "selective_accuracy_curve": [
+    {
+      "threshold": 0.5,
+      "automation_fraction": 0.7909090909090909,
+      "accepted_accuracy": 0.9618226600985221,
+      "escalation_fraction": 0.20909090909090908,
+      "error_recall_in_escalated": 0.7155963302752294,
+      "accepted_n": 2436
+    },
+    {
+      "threshold": 0.7,
+      "automation_fraction": 0.6451298701298701,
+      "accepted_accuracy": 0.9818822345244087,
+      "escalation_fraction": 0.3548701298701299,
+      "error_recall_in_escalated": 0.8899082568807339,
+      "accepted_n": 1987
+    },
+    {
+      "threshold": 0.8,
+      "automation_fraction": 0.5396103896103897,
+      "accepted_accuracy": 0.9885679903730445,
+      "escalation_fraction": 0.4603896103896104,
+      "error_recall_in_escalated": 0.9418960244648318,
+      "accepted_n": 1662
+    },
+    {
+      "threshold": 0.9,
+      "automation_fraction": 0.3762987012987013,
+      "accepted_accuracy": 0.9956859361518551,
+      "escalation_fraction": 0.6237012987012988,
+      "error_recall_in_escalated": 0.9847094801223242,
+      "accepted_n": 1159
+    },
+    {
+      "threshold": 0.95,
+      "automation_fraction": 0.24902597402597404,
+      "accepted_accuracy": 0.9960886571056062,
+      "escalation_fraction": 0.750974025974026,
+      "error_recall_in_escalated": 0.9908256880733946,
+      "accepted_n": 767
+    }
+  ],
+  "local_inference": {
+    "measured_single_message_n": 500,
+    "single_message_p50_ms": 0.33321049999999997,
+    "single_message_p95_ms": 0.4180546,
+    "batch_messages": 3080,
+    "batch_elapsed_seconds": 0.030224406,
+    "batch_throughput_messages_per_second": 101904.40136358677,
+    "platform": {
+      "python": "3.11.17",
+      "architecture": "x86_64",
+      "cpu_count": 4
+    },
+    "limits": "Warm CPU Python timings on this machine only; excludes serialization, HTTP, concurrency, scale-to-zero cold starts and hosting fees."
+  },
+  "hosting": {
+    "status": "not priced; no claim of zero hosting cost"
+  },
+  "release_status": "offline CPU benchmark"
+}
