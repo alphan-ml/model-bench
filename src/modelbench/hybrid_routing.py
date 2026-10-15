@@ -111,8 +111,8 @@ def main() -> None:
         for i, row in enumerate(golden):
             h = hosted[row["id"]]
             token_cost = (
-                h["input_tokens"] * price["input_per_1m"]
-                + h["output_tokens"] * price["output_per_1m"]
+                (h["input_tokens"] or 0) * price["input_per_1m"]
+                + (h["output_tokens"] or 0) * price["output_per_1m"]
             ) / 1e6
             rows.append({
                 "id": row["id"],
