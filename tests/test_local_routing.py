@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from modelbench.hybrid_routing import crossfit, policy, choose_threshold
+from modelbench.hybrid_routing import choose_threshold, crossfit, policy
 from modelbench.local_benchmark import assumed_hosting_cost, selective_accuracy
 
 
