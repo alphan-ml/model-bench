@@ -1,0 +1,62 @@
+name: Benchmark Local Inference and Routing
+
+on:
+  push:
+    branches: [improve-model-evidence-20261015]
+    paths:
+      - '.github/workflows/local-quality-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install evaluation dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Cache labeled task-specific training set
+        run: |
+          python - <<'PY'
+          from modelbench.baseline import download_train_jsonl
+          print(download_train_jsonl())
+          PY
+      - name: Measure CPU inference and abstention
+        run: python -m modelbench.local_benchmark --single-message-sample 500
+      - name: Simulate measured local-first versus hosted routing
+        run: python -m modelbench.hybrid_routing
+      - name: Display reproducible summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for fn in ('local_runtime_benchmark.json', 'local_first_routing_crossfit.json'):
+              p = Path('outputs') / fn
+              data = json.loads(p.read_text())
+              print(fn)
+              if 'local_inference' in data:
+                  print(json.dumps(data['local_inference'], indent=2))
+                  print('fine_accuracy:', data['fine_accuracy'])
+                  print('selective_accuracy_curve:', data['selective_accuracy_curve'])
+              else:
+                  for key, val in data['routing_evidence'].items():
+                      print(key, json.dumps({
+                        'a_to_b': val['select_on_a_evaluate_on_b'],
+                        'b_to_a': val['select_on_b_evaluate_on_a']
+                      }))
+          PY
+      - name: Archive benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-bench-local-experiments
+          path: |
+            outputs/local_runtime_benchmark.json
+            outputs/local_first_routing_crossfit.json
+          if-no-files-found: warn
