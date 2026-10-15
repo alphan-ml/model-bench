@@ -631,3 +631,22 @@ least once and every intent is mapped to exactly one valid group.
 
 Code: MIT (see `LICENSE`). Data: Banking77 is CC BY 4.0 from PolyAI — see
 `data/ATTRIBUTION.md` for the full citation.
+
+
+## Local inference and hybrid routing experiments (October 2026)
+
+The published four-way Banking77 benchmark is **unchanged**. A lower hosted-model API bill is not the same as zero total cost, and a per-request latency comparison cannot use a local model that was not timed.
+
+After caching the existing training split with `python -m modelbench.decision`, run:
+
+```bash
+python -m modelbench.local_benchmark
+python -m modelbench.local_benchmark --monthly-hosting-usd 120 --monthly-messages 20000
+python -m modelbench.hybrid_routing
+pytest -q tests/test_local_routing.py
+```
+
+- `outputs/local_runtime_benchmark.json` records real warm single-message CPU latency (p50, p95), batch throughput, and accuracy versus confidence thresholds. Hosting costs are **not** guessed. The optional USD inputs are a labeled user-supplied scenario, not actual AWS or Vercel spend.
+- `outputs/local_first_routing_crossfit.json` tests a local-classifier-first / hosted-escalation route against saved Nova, Llama and Mistral outputs and their recorded tokens. Selection of each confidence threshold occurs on one half of the test messages; results are reported on the opposite half, in both directions. Hosted-model cost is computed from saved calls, with local hosting excluded. The local model already outperforms all three hosted models on the recorded dataset; routing is **not** presumed useful.
+- Neither experiment updates the website headline until independently reproduced, benchmarked on a known host, and given an appropriate use-case-specific decision gate. Model-reported confidence and calibrated correctness are distinct.
+
