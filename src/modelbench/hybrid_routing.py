@@ -47,13 +47,16 @@ def policy(rows: list[dict], threshold: float) -> dict:
 def choose_threshold(rows: list[dict], max_provider_cost_per_1k_usd: float) -> dict:
     if max_provider_cost_per_1k_usd < 0:
         raise ValueError("negative provider cost budget")
-    candidates = [
-        policy(rows, threshold) for threshold in THRESHOLDS
-        if policy(rows, threshold)["provider_cost_per_1k_usd"] <= max_provider_cost_per_1k_usd + 1e-12
-    ]
+    candidates = []
+    for threshold in THRESHOLDS:
+        result = policy(rows, threshold)
+        if result["provider_cost_per_1k_usd"] <= max_provider_cost_per_1k_usd + 1e-12:
+            candidates.append(result)
     if not candidates:
         raise RuntimeError("No viable policy, including always-local")
-    return min(candidates, key=lambda x: (-x["accuracy"], x["provider_cost_per_1k_usd"], x["threshold"]))
+    return min(
+        candidates, key=lambda x: (-x["accuracy"], x["provider_cost_per_1k_usd"], x["threshold"])
+    )
 
 
 def crossfit(rows: list[dict], max_provider_cost_per_1k_usd=0.20, seed=26) -> dict:
@@ -91,7 +94,7 @@ def crossfit(rows: list[dict], max_provider_cost_per_1k_usd=0.20, seed=26) -> di
 
 def main() -> None:
     if not baseline.TRAIN_JSONL_PATH.exists():
-        raise SystemExit("Run 'python -m modelbench.decision' to cache the labeled training set first")
+        raise SystemExit("Run modelbench.decision to cache the labeled training set first")
     train = baseline.load_jsonl(baseline.TRAIN_JSONL_PATH)
     golden = baseline.load_jsonl(DATA_DIR / "golden.jsonl")
     pipe = baseline.train_classifier(train)
