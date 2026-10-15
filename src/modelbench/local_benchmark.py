@@ -22,7 +22,11 @@ DATA_DIR = ROOT / "data"
 OUT_DIR = ROOT / "outputs"
 
 
-def selective_accuracy(confidence: np.ndarray, correct: np.ndarray, thresholds=(0.5, 0.7, 0.8, 0.9, 0.95)) -> list[dict]:
+def selective_accuracy(
+    confidence: np.ndarray,
+    correct: np.ndarray,
+    thresholds=(0.5, 0.7, 0.8, 0.9, 0.95),
+) -> list[dict]:
     conf = np.asarray(confidence, dtype=float)
     ok = np.asarray(correct, dtype=bool)
     if conf.shape != ok.shape:
@@ -84,7 +88,10 @@ def measure(pipe, texts: list[str], sample_size=1000) -> dict:
             "architecture": platform.machine(),
             "cpu_count": os.cpu_count(),
         },
-        "limits": "Warm CPU Python timings on this machine only; excludes serialization, HTTP, concurrency, scale-to-zero cold starts and hosting fees.",
+        "limits": (
+            "Warm CPU Python timings on this machine only; excludes serialization, "
+            "HTTP, concurrency, scale-to-zero cold starts and hosting fees."
+        ),
     }
 
 
@@ -100,7 +107,7 @@ def main() -> None:
         parser.error("--single-message-sample must be positive")
 
     if not baseline.TRAIN_JSONL_PATH.exists():
-        raise SystemExit("Run 'python -m modelbench.decision' to download/train baseline data first")
+        raise SystemExit("Run modelbench.decision to cache the training data first")
     train = baseline.load_jsonl(baseline.TRAIN_JSONL_PATH)
     test = baseline.load_jsonl(DATA_DIR / "golden.jsonl")
     classifier = baseline.train_classifier(train)
